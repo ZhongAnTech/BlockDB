@@ -86,7 +86,10 @@ func (l *GeneralTCPProxyListener) Start() {
 			go func() {
 				// release limit
 				defer func(maxChan chan bool) { <-maxChan }(maxChan)
-				l.processor.ProcessConnection(conn)
+				err := l.processor.ProcessConnection(conn)
+				if err != nil {
+					logrus.WithField("conn", conn.RemoteAddr()).WithError(err).Warn("error on connection")
+				}
 			}()
 		}
 	}()

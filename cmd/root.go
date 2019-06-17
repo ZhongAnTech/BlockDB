@@ -78,7 +78,23 @@ func init() {
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.BlockDB.yaml)")
+	rootCmd.PersistentFlags().StringP("datadir", "d", "datadir", fmt.Sprintf("Runtime directory for storage and configurations"))
+	rootCmd.PersistentFlags().StringP("config", "c", "config.toml", "Path for configuration file or url of config server")
+	rootCmd.PersistentFlags().StringP("log_dir", "l", "", "Path for configuration file. Not enabled by default")
+	rootCmd.PersistentFlags().BoolP("log_stdout", "s", false, "Whether the log will be printed to stdout")
+	rootCmd.PersistentFlags().StringP("log_level", "v", "debug", "Logging verbosity, possible values:[panic, fatal, error, warn, info, debug]")
+	rootCmd.PersistentFlags().BoolP("log_line_number", "n", false, "log_line_number")
+	rootCmd.PersistentFlags().BoolP("multifile_by_level", "m", false, "multifile_by_level")
+	rootCmd.PersistentFlags().BoolP("multifile_by_module", "M", false, "multifile_by_module")
+
+	viper.BindPFlag("datadir", rootCmd.PersistentFlags().Lookup("datadir"))
+	viper.BindPFlag("config", rootCmd.PersistentFlags().Lookup("config"))
+	viper.BindPFlag("log.log_dir", rootCmd.PersistentFlags().Lookup("log_dir"))
+	viper.BindPFlag("log_line_number", rootCmd.PersistentFlags().Lookup("log_line_number"))
+	viper.BindPFlag("multifile_by_level", rootCmd.PersistentFlags().Lookup("multifile_by_level"))
+	viper.BindPFlag("multifile_by_module", rootCmd.PersistentFlags().Lookup("multifile_by_module"))
+	//viper.BindPFlag("log_stdout", rootCmd.PersistentFlags().Lookup("log_stdout"))
+	viper.BindPFlag("log.level", rootCmd.PersistentFlags().Lookup("log_level"))
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.

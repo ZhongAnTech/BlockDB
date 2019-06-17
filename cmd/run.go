@@ -60,6 +60,7 @@ func readConfig() {
 	datadirPath := viper.GetString("datadir")
 
 	absPath, err := filepath.Abs(filepath.Join(datadirPath, configPath))
+	fmt.Println(absPath)
 	panicIfError(err, fmt.Sprintf("Error on parsing config file path: %s", absPath))
 
 	file, err := os.Open(absPath)
@@ -69,6 +70,10 @@ func readConfig() {
 	viper.SetConfigType("toml")
 	err = viper.MergeConfig(file)
 	panicIfError(err, fmt.Sprintf("Error on reading config file: %s", absPath))
+	for _, key := range viper.AllKeys() {
+		fmt.Printf("%s:%s", key, viper.Get(key))
+	}
+
 }
 
 func init() {

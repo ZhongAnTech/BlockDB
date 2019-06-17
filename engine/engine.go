@@ -5,6 +5,7 @@ import (
 	"github.com/annchain/BlockDB/plugins/server/mongodb"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+	"time"
 )
 
 type Engine struct {
@@ -41,7 +42,9 @@ func (n *Engine) Stop() {
 
 func (n *Engine) registerComponents() {
 	// Incoming connection handler
-	p := mongodb.NewMongoProcessor()
+	p := mongodb.NewMongoProcessor(mongodb.MongoProcessorConfig{
+		IdleConnectionTimeout: time.Second * time.Duration(viper.GetInt("mongodb.idle_connection_seconds")),
+	})
 	l := listener.NewGeneralTCPListener(p, viper.GetInt("mongodb.incoming_port"),
 		viper.GetInt("mongodb.incoming_max_connection"))
 	n.components = append(n.components, l)
