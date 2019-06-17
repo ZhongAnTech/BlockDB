@@ -15,4 +15,5 @@ require (
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/viper v1.4.0
 	github.com/tebeka/strftime v0.0.0-20140926081919-3f9c7761e312 // indirect
+	gopkg.in/yaml.v2 v2.2.2
 )

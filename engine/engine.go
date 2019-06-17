@@ -2,6 +2,7 @@ package engine
 
 import (
 	"github.com/annchain/BlockDB/listener"
+	"github.com/annchain/BlockDB/plugins/client/og"
 	"github.com/annchain/BlockDB/plugins/server/mongodb"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -50,6 +51,14 @@ func (n *Engine) registerComponents() {
 		l := listener.NewGeneralTCPListener(p, viper.GetInt("listener.mongodb.incoming_port"),
 			viper.GetInt("listener.mongodb.incoming_max_connection"))
 		n.components = append(n.components, l)
+	}
+
+	if viper.GetBool("og.enabled") {
+		url := viper.GetString("og.url")
+		p := og.NewOgProcessor(og.OgProcessorConfig{LedgerUrl: url,
+			IdleConnectionTimeout: time.Second * time.Duration(viper.GetInt("listener.og.idle_connection_seconds")),
+		})
+		n.components = append(n.components, p)
 	}
 
 }
