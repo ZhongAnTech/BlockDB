@@ -11,6 +11,8 @@ import (
 	"time"
 )
 
+const headerLen = 16
+
 type MongoProcessor struct {
 	config MongoProcessorConfig
 }
@@ -34,13 +36,19 @@ func NewMongoProcessor(config MongoProcessorConfig) *MongoProcessor {
 }
 
 func (m *MongoProcessor) ProcessConnection(conn net.Conn) error {
+
+	fmt.Println("start process connection")
+
 	// 1, parse command
 	// 2, dispatch the command to every interested parties
 	//    including chain logger and the real backend mongoDB server
 	// 3, response to conn
 	for {
 		conn.SetReadDeadline(time.Now().Add(m.config.IdleConnectionTimeout))
-		bytes, err := bufio.NewReader(conn).ReadBytes('\n')
+
+		var b [headerLen]byte
+		bytes := b[:]
+		_, err := bufio.NewReader(conn).Read(bytes)
 		if err != nil {
 			if err == io.EOF {
 				logrus.Info("target closed")

@@ -58,9 +58,9 @@ var runCmd = &cobra.Command{
 
 func readConfig() {
 	configPath := viper.GetString("config")
-	datadirPath := viper.GetString("datadir")
+	//datadirPath := viper.GetString("datadir")
 
-	absPath, err := filepath.Abs(filepath.Join(datadirPath, configPath))
+	absPath, err := filepath.Abs(configPath)
 	fmt.Println(absPath)
 	panicIfError(err, fmt.Sprintf("Error on parsing config file path: %s", absPath))
 
