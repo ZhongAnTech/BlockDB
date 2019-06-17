@@ -17,6 +17,7 @@ package cmd
 import (
 	"bytes"
 	"fmt"
+	"github.com/annchain/BlockDB/mylog"
 	"github.com/rifflock/lfshook"
 	"io"
 	"io/ioutil"

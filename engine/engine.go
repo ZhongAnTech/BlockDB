@@ -9,7 +9,7 @@ type Engine struct {
 func NewEngine() *Engine {
 	engine := new(Engine)
 	engine.Components = []Component{}
-
+	return engine
 }
 
 func (n *Engine) Start() {
