@@ -3,6 +3,7 @@ package engine
 import (
 	"github.com/annchain/BlockDB/listener"
 	"github.com/annchain/BlockDB/plugins/client/og"
+	"github.com/annchain/BlockDB/plugins/server/log4j2"
 	"github.com/annchain/BlockDB/plugins/server/mongodb"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -50,6 +51,16 @@ func (n *Engine) registerComponents() {
 		})
 		l := listener.NewGeneralTCPListener(p, viper.GetInt("listener.mongodb.incoming_port"),
 			viper.GetInt("listener.mongodb.incoming_max_connection"))
+		n.components = append(n.components, l)
+	}
+
+	if viper.GetBool("listener.log4j2Socket.enabled") {
+		// Incoming connection handler
+		p := log4j2.NewLog4j2SocketProcessor(log4j2.Log4j2SocketProcessorConfig{
+			IdleConnectionTimeout: time.Second * time.Duration(viper.GetInt("listener.log4j2Socket.idle_connection_seconds")),
+		})
+		l := listener.NewGeneralTCPListener(p, viper.GetInt("listener.log4j2Socket.incoming_port"),
+			viper.GetInt("listener.log4j2Socket.incoming_max_connection"))
 		n.components = append(n.components, l)
 	}
 
