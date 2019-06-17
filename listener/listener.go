@@ -8,31 +8,8 @@ import (
 )
 
 type ProxyListener interface {
-	Start(port int)
+	Start()
 	Stop()
-}
-type ProxyListenerComponent struct {
-	Listener ProxyListener
-	Port     int
-}
-
-func NewProxyListenerComponent(l ProxyListener, port int) *ProxyListenerComponent {
-	return &ProxyListenerComponent{
-		Listener: l,
-		Port:     port,
-	}
-}
-
-func (l *ProxyListenerComponent) Start() {
-	l.Listener.Start(l.Port)
-}
-
-func (l *ProxyListenerComponent) Stop() {
-	l.Listener.Stop()
-}
-
-func (l *ProxyListenerComponent) Name() string {
-	panic("implement me")
 }
 
 type GeneralTCPProxyListener struct {
