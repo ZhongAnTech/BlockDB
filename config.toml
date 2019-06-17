@@ -1,2 +1,3 @@
 [mongodb]
-    incoming_port= 8080
+    incoming_port = 8080
+    incoming_max_connection = 10

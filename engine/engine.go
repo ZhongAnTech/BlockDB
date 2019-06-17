@@ -2,7 +2,7 @@ package engine
 
 import (
 	"github.com/annchain/BlockDB/listener"
-	"github.com/annchain/BlockDB/plugins/mongodb"
+	"github.com/annchain/BlockDB/plugins/server/mongodb"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
@@ -42,7 +42,8 @@ func (n *Engine) Stop() {
 func (n *Engine) registerComponents() {
 	// Incoming connection handler
 	p := mongodb.NewMongoProcessor()
-	l := listener.NewGeneralTCPListener(p, viper.GetInt("mongodb.incoming_port"))
+	l := listener.NewGeneralTCPListener(p, viper.GetInt("mongodb.incoming_port"),
+		viper.GetInt("mongodb.incoming_max_connection"))
 	n.components = append(n.components, l)
 
 }

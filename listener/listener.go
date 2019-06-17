@@ -36,20 +36,22 @@ func (l *ProxyListenerComponent) Name() string {
 }
 
 type GeneralTCPProxyListener struct {
-	processor processors.Processor
-	port      int
-	ln        net.Listener
-	closed    bool
+	processor         processors.Processor
+	port              int
+	ln                net.Listener
+	closed            bool
+	maxConnectionSize int
 }
 
 func (l *GeneralTCPProxyListener) Name() string {
 	return fmt.Sprintf("GeneralTCPProxyListener listening on %d", l.port)
 }
 
-func NewGeneralTCPListener(p processors.Processor, port int) *GeneralTCPProxyListener {
+func NewGeneralTCPListener(p processors.Processor, port int, maxConnectionSize int) *GeneralTCPProxyListener {
 	return &GeneralTCPProxyListener{
-		processor: p,
-		port:      port,
+		processor:         p,
+		port:              port,
+		maxConnectionSize: maxConnectionSize,
 	}
 }
 
@@ -66,8 +68,11 @@ func (l *GeneralTCPProxyListener) Start() {
 		}
 		logrus.WithField("port", l.port).Info("server running on port")
 		l.ln = ln
+		// to limit the total number of accepted connections.
+		maxChan := make(chan bool, l.maxConnectionSize)
 
 		for {
+			maxChan <- true
 			conn, err := ln.Accept()
 			if err != nil {
 				if l.closed {
@@ -78,7 +83,11 @@ func (l *GeneralTCPProxyListener) Start() {
 			}
 
 			logrus.WithField("remote", conn.RemoteAddr()).Trace("accepted connection ")
-			go l.processor.ProcessConnection(conn)
+			go func() {
+				// release limit
+				defer func(maxChan chan bool) { <-maxChan }(maxChan)
+				l.processor.ProcessConnection(conn)
+			}()
 		}
 	}()
 
