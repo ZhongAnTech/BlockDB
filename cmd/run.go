@@ -15,6 +15,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/annchain/BlockDB/engine"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -34,8 +35,8 @@ var runCmd = &cobra.Command{
 		readConfig()
 		initLogger()
 		log.Info("BlockDB Starting")
-		//node := node.NewNode()
-		//node.Start()
+		eng := engine.NewEngine()
+		eng.Start()
 
 		// prevent sudden stop. Do your clean up here
 		var gracefulStop = make(chan os.Signal)
@@ -45,9 +46,9 @@ var runCmd = &cobra.Command{
 
 		func() {
 			sig := <-gracefulStop
-			log.Warnf("caught sig: %+v", sig)
-			log.Warn("Exiting... Please do no kill me")
-			//node.Stop()
+			log.Infof("caught sig: %+v", sig)
+			log.Info("Exiting... Please do no kill me")
+			eng.Stop()
 			os.Exit(0)
 		}()
 
