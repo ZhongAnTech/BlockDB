@@ -2,7 +2,9 @@ package mongodb
 
 import (
 	"bufio"
+	"encoding/hex"
 	"fmt"
+	"github.com/annchain/BlockDB/processors"
 	"github.com/sirupsen/logrus"
 	"io"
 	"net"
@@ -33,13 +35,12 @@ func NewMongoProcessor(config MongoProcessorConfig) *MongoProcessor {
 
 func (m *MongoProcessor) ProcessConnection(conn net.Conn) error {
 	// 1, parse command
-	// 2, send to internal queue
-	// 3, consume queue and dispatch the command to every interested parties
+	// 2, dispatch the command to every interested parties
 	//    including chain logger and the real backend mongoDB server
-	// 4, response to conn
+	// 3, response to conn
 	for {
 		conn.SetReadDeadline(time.Now().Add(m.config.IdleConnectionTimeout))
-		str, err := bufio.NewReader(conn).ReadString('\n')
+		bytes, err := bufio.NewReader(conn).ReadBytes('\n')
 		if err != nil {
 			if err == io.EOF {
 				logrus.Info("target closed")
@@ -50,10 +51,16 @@ func (m *MongoProcessor) ProcessConnection(conn net.Conn) error {
 				return nil
 			}
 			return err
-		} else {
-			fmt.Println(str)
 		}
-	}
+		// query command
+		fmt.Println(hex.Dump(bytes))
+		events := m.ParseCommand(bytes)
+		fmt.Println(events)
 
+	}
+	return nil
+}
+
+func (m *MongoProcessor) ParseCommand(bytes []byte) []processors.LogEvent {
 	return nil
 }

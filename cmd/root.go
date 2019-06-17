@@ -87,14 +87,14 @@ func init() {
 	rootCmd.PersistentFlags().BoolP("multifile_by_level", "m", false, "multifile_by_level")
 	rootCmd.PersistentFlags().BoolP("multifile_by_module", "M", false, "multifile_by_module")
 
-	viper.BindPFlag("datadir", rootCmd.PersistentFlags().Lookup("datadir"))
-	viper.BindPFlag("config", rootCmd.PersistentFlags().Lookup("config"))
-	viper.BindPFlag("log.log_dir", rootCmd.PersistentFlags().Lookup("log_dir"))
-	viper.BindPFlag("log_line_number", rootCmd.PersistentFlags().Lookup("log_line_number"))
-	viper.BindPFlag("multifile_by_level", rootCmd.PersistentFlags().Lookup("multifile_by_level"))
-	viper.BindPFlag("multifile_by_module", rootCmd.PersistentFlags().Lookup("multifile_by_module"))
+	_ = viper.BindPFlag("datadir", rootCmd.PersistentFlags().Lookup("datadir"))
+	_ = viper.BindPFlag("config", rootCmd.PersistentFlags().Lookup("config"))
+	_ = viper.BindPFlag("log.log_dir", rootCmd.PersistentFlags().Lookup("log_dir"))
+	_ = viper.BindPFlag("log_line_number", rootCmd.PersistentFlags().Lookup("log_line_number"))
+	_ = viper.BindPFlag("multifile_by_level", rootCmd.PersistentFlags().Lookup("multifile_by_level"))
+	_ = viper.BindPFlag("multifile_by_module", rootCmd.PersistentFlags().Lookup("multifile_by_module"))
 	//viper.BindPFlag("log_stdout", rootCmd.PersistentFlags().Lookup("log_stdout"))
-	viper.BindPFlag("log.level", rootCmd.PersistentFlags().Lookup("log_level"))
+	_ = viper.BindPFlag("log.level", rootCmd.PersistentFlags().Lookup("log_level"))
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.

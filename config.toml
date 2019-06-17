@@ -1,4 +1,11 @@
-[mongodb]
+[listener]
+    [listener.mongodb]
+    enabled = true
     incoming_port = 27017
     incoming_max_connection = 10
     idle_connection_seconds = 30
+
+[backend]
+    [backend.mongodb]
+    # see http://mongodb.github.io/mongo-java-driver/3.6/javadoc/?com/mongodb/ConnectionString.html for full connection parameters
+    connection_string = "mongodb://[username:password@]host1[:port1][,host2[:port2],...[,hostN[:portN]]][/[database.collection][?options]]"

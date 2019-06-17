@@ -41,12 +41,15 @@ func (n *Engine) Stop() {
 }
 
 func (n *Engine) registerComponents() {
-	// Incoming connection handler
-	p := mongodb.NewMongoProcessor(mongodb.MongoProcessorConfig{
-		IdleConnectionTimeout: time.Second * time.Duration(viper.GetInt("mongodb.idle_connection_seconds")),
-	})
-	l := listener.NewGeneralTCPListener(p, viper.GetInt("mongodb.incoming_port"),
-		viper.GetInt("mongodb.incoming_max_connection"))
-	n.components = append(n.components, l)
+	// MongoDB incoming
+	if viper.GetBool("listener.mongodb.enabled") {
+		// Incoming connection handler
+		p := mongodb.NewMongoProcessor(mongodb.MongoProcessorConfig{
+			IdleConnectionTimeout: time.Second * time.Duration(viper.GetInt("listener.mongodb.idle_connection_seconds")),
+		})
+		l := listener.NewGeneralTCPListener(p, viper.GetInt("listener.mongodb.incoming_port"),
+			viper.GetInt("listener.mongodb.incoming_max_connection"))
+		n.components = append(n.components, l)
+	}
 
 }

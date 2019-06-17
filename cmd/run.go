@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sort"
 	"syscall"
 )
 
@@ -70,8 +71,10 @@ func readConfig() {
 	viper.SetConfigType("toml")
 	err = viper.MergeConfig(file)
 	panicIfError(err, fmt.Sprintf("Error on reading config file: %s", absPath))
-	for _, key := range viper.AllKeys() {
-		fmt.Printf("%s:%s", key, viper.Get(key))
+	keys := viper.AllKeys()
+	sort.Strings(keys)
+	for _, key := range keys {
+		fmt.Printf("%s:%v\n", key, viper.Get(key))
 	}
 
 }
