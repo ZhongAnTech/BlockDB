@@ -1,14 +1,10 @@
 package og
 
 import (
-	"bufio"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/annchain/BlockDB/httplib"
 	"github.com/sirupsen/logrus"
-	"io"
-	"net"
 	"net/url"
 	"time"
 )
@@ -73,28 +69,28 @@ func (o *OgProcessor) sendToLedger(data []byte) {
 	fmt.Println(str)
 }
 
-func (m *OgProcessor) ProcessConnection(conn net.Conn) error {
-	// 1, parse command
-	// 2, dispatch the command to every interested parties
-	//    including chain logger and the real backend mongoDB server
-	// 3, response to conn
-	for {
-		conn.SetReadDeadline(time.Now().Add(m.config.IdleConnectionTimeout))
-		bytes, err := bufio.NewReader(conn).ReadBytes('\n')
-		if err != nil {
-			if err == io.EOF {
-				logrus.Info("target closed")
-				return nil
-			} else if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
-				logrus.Info("target timeout")
-				conn.Close()
-				return nil
-			}
-			return err
-		}
-		// query command
-		fmt.Println(hex.Dump(bytes))
-		m.SendToLedger(bytes)
-	}
-	return nil
-}
+//func (m *OgProcessor) ProcessConnection(conn net.Conn) error {
+//	// 1, parse command
+//	// 2, dispatch the command to every interested parties
+//	//    including chain logger and the real backend mongoDB server
+//	// 3, response to conn
+//	for {
+//		conn.SetReadDeadline(time.Now().Add(m.config.IdleConnectionTimeout))
+//		bytes, err := bufio.NewReader(conn).ReadBytes('\n')
+//		if err != nil {
+//			if err == io.EOF {
+//				logrus.Info("target closed")
+//				return nil
+//			} else if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
+//				logrus.Info("target timeout")
+//				conn.Close()
+//				return nil
+//			}
+//			return err
+//		}
+//		// query command
+//		fmt.Println(hex.Dump(bytes))
+//		m.SendToLedger(bytes)
+//	}
+//	return nil
+//}
