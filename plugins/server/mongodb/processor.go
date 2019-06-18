@@ -2,10 +2,10 @@ package mongodb
 
 import (
 	"bufio"
-	"encoding/hex"
 	"fmt"
 	"github.com/annchain/BlockDB/processors"
 	"github.com/sirupsen/logrus"
+	"github.com/annchain/BlockDB/common/bytes"
 	"io"
 	"net"
 	"time"
@@ -15,6 +15,9 @@ const headerLen = 16
 
 type MongoProcessor struct {
 	config MongoProcessorConfig
+
+	readPool *Pool
+	writePool *Pool
 }
 type MongoProcessorConfig struct {
 	IdleConnectionTimeout time.Duration
@@ -32,6 +35,8 @@ func (m *MongoProcessor) Start() {
 func NewMongoProcessor(config MongoProcessorConfig) *MongoProcessor {
 	return &MongoProcessor{
 		config: config,
+		readPool: NewPool(10),
+		writePool: NewPool(10),
 	}
 }
 
@@ -47,8 +52,8 @@ func (m *MongoProcessor) ProcessConnection(conn net.Conn) error {
 		conn.SetReadDeadline(time.Now().Add(m.config.IdleConnectionTimeout))
 
 		var b [headerLen]byte
-		bytes := b[:]
-		_, err := bufio.NewReader(conn).Read(bytes)
+		cmdHeader := b[:]
+		_, err := bufio.NewReader(conn).Read(cmdHeader)
 		if err != nil {
 			if err == io.EOF {
 				logrus.Info("target closed")
@@ -60,15 +65,76 @@ func (m *MongoProcessor) ProcessConnection(conn net.Conn) error {
 			}
 			return err
 		}
-		// query command
-		fmt.Println(hex.Dump(bytes))
-		events := m.ParseCommand(bytes)
-		fmt.Println(events)
 
+		// query command
+		msgSize := bytes.GetInt32(cmdHeader, 0)
+		fmt.Println("msgsize: ", msgSize)
+
+		// TODO handle full msg not only header msg
+		err = m.messageHandler(cmdHeader, conn)
+		if err != nil {
+			// TODO handle err
+			return err
+		}
+
+		break
 	}
 	return nil
 }
 
-func (m *MongoProcessor) ParseCommand(bytes []byte) []processors.LogEvent {
+func (m *MongoProcessor) messageHandler(bytes []byte, client net.Conn) error {
+
+	var msg RequestMessage
+	err := msg.Decode(bytes)
+	if err != nil {
+		// TODO handle err
+		return err
+	}
+
+	var pool *Pool
+	if msg.Read() {
+		pool = m.readPool
+	} else {
+		pool = m.writePool
+	}
+	server := pool.Acquire()
+	defer pool.FreeConn(server)
+
+	err = msg.WriteTo(server)
+	if err != nil {
+		// TODO handle err
+		return err
+	}
+
+	var msgResp ResponseMessage
+	err = msgResp.ReadFromMongo(server)
+	if err != nil {
+		// TODO handle err
+		return err
+	}
+	err = msgResp.WriteTo(client)
+	if err != nil {
+		// TODO handle err
+		return err
+	}
+
+	err = m.handleBlockDBEvents(&msgResp)
+	if err != nil {
+		// TODO handle err
+		return err
+	}
+
 	return nil
 }
+
+func (m *MongoProcessor) handleBlockDBEvents(msg MongoMessage) error {
+	// TODO not implemented yet
+
+	events := msg.ParseCommand()
+
+	fmt.Println("block db events: ", events)
+
+	return nil
+}
+
+
