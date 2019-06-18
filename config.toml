@@ -5,6 +5,12 @@
     incoming_max_connection = 10
     idle_connection_seconds = 30
 
+    [listener.log4j2Socket]
+    enabled = true
+    incoming_port = 27018
+    incoming_max_connection = 10
+    idle_connection_seconds = 30
+
 [backend]
     [backend.mongodb]
     # see http://mongodb.github.io/mongo-java-driver/3.6/javadoc/?com/mongodb/ConnectionString.html for full connection parameters
