@@ -18,4 +18,4 @@
 
 [og]
 enabled = true
-url="http://192.168.45.149:11300/new_archive"
+url="http://172.28.152.101:8000/new_archive"
