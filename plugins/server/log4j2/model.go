@@ -1,12 +1,12 @@
 package log4j2
 
 type Log4j2SocketEventInstant struct {
-	timestamp uint32 `json:"epochSecond"`
+	Timestamp int `json:"epochSecond"`
 }
 
 type Log4j2SocketEvent struct {
-	loggerName string                   `json:"loggerName"`
-	message    string                   `json:"message"`
-	instant    Log4j2SocketEventInstant `json:"instant"`
-	contextMap interface{}              `json:"contextMap"`
+	LoggerName string                   `json:"loggerName"`
+	Message    string                   `json:"message"`
+	Instant    Log4j2SocketEventInstant `json:"instant"`
+	ContextMap map[string]interface{}   `json:"contextMap"`
 }

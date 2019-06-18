@@ -59,6 +59,8 @@ func (m *Log4j2SocketProcessor) ProcessConnection(conn net.Conn) error {
 		}
 		event.Ip = conn.RemoteAddr().String()
 		fmt.Printf("%+v\n", event)
+
+		// TODO: store it to blockchain
 	}
 }
 
@@ -69,8 +71,8 @@ func (m *Log4j2SocketProcessor) ParseCommand(bytes []byte) *processors.LogEvent 
 		fmt.Println(hex.Dump(bytes))
 		return nil
 	}
-	cmap := log4j.contextMap.(map[string]string)
-	cmap["message"] = log4j.message
+	cmap := log4j.ContextMap
+	cmap["message"] = log4j.Message
 
 	data, err := json.Marshal(cmap)
 	if err != nil {
@@ -79,7 +81,7 @@ func (m *Log4j2SocketProcessor) ParseCommand(bytes []byte) *processors.LogEvent 
 		return nil
 	}
 	event := processors.LogEvent{
-		Timestamp: log4j.instant.timestamp,
+		Timestamp: log4j.Instant.Timestamp,
 		Data:      string(data),
 	}
 	return &event

@@ -7,7 +7,7 @@
 
     [listener.log4j2Socket]
     enabled = true
-    incoming_port = 27108
+    incoming_port = 27018
     incoming_max_connection = 10
     idle_connection_seconds = 30
 
