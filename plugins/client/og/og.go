@@ -40,15 +40,15 @@ func NewOgProcessor(config OgProcessorConfig) *OgProcessor {
 	}
 }
 
-func (o *OgProcessor) SendToLedger(data []byte) {
+func (o *OgProcessor) SendToLedger(data string) {
 	go o.sendToLedger(data)
 }
 
 type TxReq struct {
-	Data []byte `json:"data"`
+	Data  string `json:"data"`
 }
 
-func (o *OgProcessor) sendToLedger(data []byte) {
+func (o *OgProcessor) sendToLedger(data string) {
 	req := httplib.Post(o.config.LedgerUrl)
 	req.SetTimeout(time.Second*10, time.Second*10)
 	txReq := TxReq{
