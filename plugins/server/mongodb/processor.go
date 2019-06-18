@@ -3,9 +3,8 @@ package mongodb
 import (
 	"bufio"
 	"fmt"
-	"github.com/annchain/BlockDB/processors"
-	"github.com/sirupsen/logrus"
 	"github.com/annchain/BlockDB/common/bytes"
+	"github.com/sirupsen/logrus"
 	"io"
 	"net"
 	"time"
@@ -16,7 +15,7 @@ const headerLen = 16
 type MongoProcessor struct {
 	config MongoProcessorConfig
 
-	readPool *Pool
+	readPool  *Pool
 	writePool *Pool
 }
 type MongoProcessorConfig struct {
@@ -34,8 +33,8 @@ func (m *MongoProcessor) Start() {
 
 func NewMongoProcessor(config MongoProcessorConfig) *MongoProcessor {
 	return &MongoProcessor{
-		config: config,
-		readPool: NewPool(10),
+		config:    config,
+		readPool:  NewPool(10),
 		writePool: NewPool(10),
 	}
 }
@@ -136,5 +135,3 @@ func (m *MongoProcessor) handleBlockDBEvents(msg MongoMessage) error {
 
 	return nil
 }
-
-

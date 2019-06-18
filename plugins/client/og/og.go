@@ -26,7 +26,7 @@ func (m *OgProcessor) Start() {
 	// start consuming queue
 }
 
-func (m *OgProcessor)Name()string{
+func (m *OgProcessor) Name() string {
 	return "OgProcessor"
 }
 
@@ -45,7 +45,7 @@ func (o *OgProcessor) SendToLedger(data string) {
 }
 
 type TxReq struct {
-	Data  string `json:"data"`
+	Data string `json:"data"`
 }
 
 func (o *OgProcessor) sendToLedger(data string) {
