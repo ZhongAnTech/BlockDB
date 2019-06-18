@@ -11,23 +11,23 @@ type MongoMessage interface {
 }
 
 type RequestMessage struct {
-	host string
-	op int
+	host    string
+	op      int
 	payload []byte
 }
 
 const (
-	opReply  = 1
-	opUpdate = 2001
-	opInsert = 2002
-	reserved = 2003
-	opQuery = 2004
-	opGetMore = 2005
-	opDelete = 2006
-	opKillCursor = 2007
-	opCommand = 2010
+	opReply        = 1
+	opUpdate       = 2001
+	opInsert       = 2002
+	reserved       = 2003
+	opQuery        = 2004
+	opGetMore      = 2005
+	opDelete       = 2006
+	opKillCursor   = 2007
+	opCommand      = 2010
 	opCommandReply = 2011
-	opMsg = 2013
+	opMsg          = 2013
 )
 
 func (m *RequestMessage) Read() bool {
@@ -60,7 +60,7 @@ func (m *RequestMessage) WriteTo(c net.Conn) error {
 }
 
 type ResponseMessage struct {
-//	TODO
+	//	TODO
 }
 
 func (m *ResponseMessage) ReadFromMongo(c net.Conn) error {

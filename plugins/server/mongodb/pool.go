@@ -6,7 +6,6 @@ import (
 )
 
 type Pool struct {
-
 	connChan chan net.Conn
 
 	mu sync.RWMutex
@@ -42,7 +41,7 @@ func (pool *Pool) Acquire() net.Conn {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 
-	conn := <- pool.connChan
+	conn := <-pool.connChan
 
 	return conn
 }
