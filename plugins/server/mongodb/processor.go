@@ -3,9 +3,9 @@ package mongodb
 import (
 	"bufio"
 	"fmt"
-	"github.com/annchain/BlockDB/processors"
-	"github.com/sirupsen/logrus"
 	"github.com/annchain/BlockDB/common/bytes"
+	//"github.com/annchain/BlockDB/processors"
+	"github.com/sirupsen/logrus"
 	"io"
 	"net"
 	"time"
@@ -16,7 +16,7 @@ const headerLen = 16
 type MongoProcessor struct {
 	config MongoProcessorConfig
 
-	readPool *Pool
+	readPool  *Pool
 	writePool *Pool
 }
 type MongoProcessorConfig struct {
@@ -33,16 +33,21 @@ func (m *MongoProcessor) Start() {
 }
 
 func NewMongoProcessor(config MongoProcessorConfig) *MongoProcessor {
+	//TODO move mongo url into config
+	url := "172.28.152.101:27017"
+
 	return &MongoProcessor{
-		config: config,
-		readPool: NewPool(10),
-		writePool: NewPool(10),
+		config:    config,
+		readPool:  NewPool(url,10),
+		writePool: NewPool(url,10),
 	}
 }
 
 func (m *MongoProcessor) ProcessConnection(conn net.Conn) error {
+	defer conn.Close()
 
 	fmt.Println("start process connection")
+	reader := bufio.NewReader(conn)
 
 	// 1, parse command
 	// 2, dispatch the command to every interested parties
@@ -51,14 +56,15 @@ func (m *MongoProcessor) ProcessConnection(conn net.Conn) error {
 	for {
 		conn.SetReadDeadline(time.Now().Add(m.config.IdleConnectionTimeout))
 
-		var b [headerLen]byte
-		cmdHeader := b[:]
-		_, err := bufio.NewReader(conn).Read(cmdHeader)
+		cmdHeader := make([]byte, headerLen)
+		_, err := reader.Read(cmdHeader)
 		if err != nil {
 			if err == io.EOF {
+				fmt.Println("target closed")
 				logrus.Info("target closed")
 				return nil
 			} else if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
+				fmt.Println("target timeout")
 				logrus.Info("target timeout")
 				conn.Close()
 				return nil
@@ -70,14 +76,22 @@ func (m *MongoProcessor) ProcessConnection(conn net.Conn) error {
 		msgSize := bytes.GetInt32(cmdHeader, 0)
 		fmt.Println("msgsize: ", msgSize)
 
-		// TODO handle full msg not only header msg
-		err = m.messageHandler(cmdHeader, conn)
+		cmdBody := make([]byte, msgSize-headerLen)
+		_, err = reader.Read(cmdBody)
+		if err != nil {
+			fmt.Println("read body error: ", err)
+			return err
+		}
+		fmt.Println(fmt.Sprintf("msg header: %x", cmdHeader))
+		fmt.Println(fmt.Sprintf("msg body: %x", cmdBody))
+
+		cmdFull := append(cmdHeader, cmdBody...)
+		err = m.messageHandler(cmdFull, conn)
 		if err != nil {
 			// TODO handle err
 			return err
 		}
 
-		break
 	}
 	return nil
 }
@@ -92,13 +106,13 @@ func (m *MongoProcessor) messageHandler(bytes []byte, client net.Conn) error {
 	}
 
 	var pool *Pool
-	if msg.Read() {
+	if msg.ReadOnly() {
 		pool = m.readPool
 	} else {
 		pool = m.writePool
 	}
 	server := pool.Acquire()
-	defer pool.FreeConn(server)
+	defer pool.Release(server)
 
 	err = msg.WriteTo(server)
 	if err != nil {
@@ -136,5 +150,3 @@ func (m *MongoProcessor) handleBlockDBEvents(msg MongoMessage) error {
 
 	return nil
 }
-
-

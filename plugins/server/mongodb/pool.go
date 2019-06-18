@@ -1,38 +1,65 @@
 package mongodb
 
 import (
+	"fmt"
 	"net"
 	"sync"
+	"time"
 )
 
 type Pool struct {
+	url string
 
+	max int
 	connChan chan net.Conn
 
 	mu sync.RWMutex
 }
 
-func NewPool(maxConn int) *Pool {
+func NewPool(url string, maxConn int) *Pool {
 	p := &Pool{}
 
+	p.url = url
+	p.max = maxConn
 	p.connChan = make(chan net.Conn, maxConn)
+	for i:=0; i<p.max; i++ {
+		c, err := p.newConn(url)
+		if err != nil {
+			// TODO handle this error
+			fmt.Println("create conn error: ", err)
+			continue
+		}
+		fmt.Println("successfully create a connection")
+		p.connChan <- c
+	}
 
 	return p
 }
 
-func (pool *Pool) newConn(url string) net.Conn {
-	// TODO
+func (pool *Pool) newConn(url string) (net.Conn, error) {
+	retrySleep := 50 * time.Millisecond
+	for retryCount := 7; retryCount > 0; retryCount-- {
+		c, err := net.Dial("tcp", url)
+		if err == nil {
+			return c, nil
+		}
+		// TODO log the error
+		fmt.Println(fmt.Sprintf("dial error: %v", err))
 
-	return nil
+		time.Sleep(retrySleep)
+		retrySleep = retrySleep * 2
+	}
+
+	return nil, fmt.Errorf("failed to create new connection to url: %s", url)
 }
 
-func (pool *Pool) FreeConn(c net.Conn) error {
+func (pool *Pool) Release(c net.Conn) error {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 
-	return pool.freeConn(c)
+	return pool.release(c)
 }
-func (pool *Pool) freeConn(c net.Conn) error {
+func (pool *Pool) release(c net.Conn) error {
 	pool.connChan <- c
 
 	return nil

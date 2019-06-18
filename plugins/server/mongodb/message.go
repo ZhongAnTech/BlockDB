@@ -1,6 +1,8 @@
 package mongodb
 
 import (
+	"bufio"
+	"github.com/annchain/BlockDB/common/bytes"
 	"github.com/annchain/BlockDB/processors"
 	"net"
 )
@@ -11,26 +13,26 @@ type MongoMessage interface {
 }
 
 type RequestMessage struct {
-	host string
-	op int
+	host    string
+	op      int32
 	payload []byte
 }
 
 const (
-	opReply  = 1
-	opUpdate = 2001
-	opInsert = 2002
-	reserved = 2003
-	opQuery = 2004
-	opGetMore = 2005
-	opDelete = 2006
-	opKillCursor = 2007
-	opCommand = 2010
-	opCommandReply = 2011
-	opMsg = 2013
+	opReply        int32 = 1
+	opUpdate       int32 = 2001
+	opInsert       int32 = 2002
+	reserved       int32 = 2003
+	opQuery        int32 = 2004
+	opGetMore      int32 = 2005
+	opDelete       int32 = 2006
+	opKillCursor   int32 = 2007
+	opCommand      int32 = 2010
+	opCommandReply int32 = 2011
+	opMsg          int32 = 2013
 )
 
-func (m *RequestMessage) Read() bool {
+func (m *RequestMessage) ReadOnly() bool {
 	if m.op == opQuery || m.op == opGetMore || m.op == opKillCursor {
 		return true
 	}
@@ -41,8 +43,9 @@ func (m *RequestMessage) Read() bool {
 	return false
 }
 
-func (m *RequestMessage) Decode(bytes []byte) error {
-	// TODO decode bytes to MongoMessage
+func (m *RequestMessage) Decode(b []byte) error {
+	m.op = bytes.GetInt32(b, 4)
+	m.payload = b
 
 	return nil
 }
@@ -56,23 +59,46 @@ func (m *RequestMessage) ParseCommand() []*processors.LogEvent {
 func (m *RequestMessage) WriteTo(c net.Conn) error {
 	// TODO write msg to connection
 
-	return nil
+	_, err := c.Write(m.payload)
+	return err
 }
 
 type ResponseMessage struct {
-//	TODO
+	payload []byte
 }
 
 func (m *ResponseMessage) ReadFromMongo(c net.Conn) error {
 	// TODO read response from mongodb connection.
 
+	reader := bufio.NewReader(c)
+
+	header := make([]byte, headerLen)
+	_, err := reader.Read(header)
+	if err != nil {
+		return err
+	}
+
+	msgSize := bytes.GetInt32(header, 0)
+	if msgSize == headerLen {
+		m.payload = header
+		return nil
+	}
+
+	body := make([]byte, msgSize-headerLen)
+	_, err = reader.Read(body)
+	if err != nil {
+		return err
+	}
+
+	m.payload = append(header, body...)
 	return nil
 }
 
 func (m *ResponseMessage) WriteTo(c net.Conn) error {
 	// TODO write msg to connection
 
-	return nil
+	_, err := c.Write(m.payload)
+	return err
 }
 
 func (m *ResponseMessage) ParseCommand() []*processors.LogEvent {
