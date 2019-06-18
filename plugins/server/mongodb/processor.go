@@ -3,12 +3,15 @@ package mongodb
 import (
 	"bufio"
 	"fmt"
+
 	"github.com/annchain/BlockDB/common/bytes"
+
 	//"github.com/annchain/BlockDB/processors"
-	"github.com/sirupsen/logrus"
 	"io"
 	"net"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 const headerLen = 16
@@ -38,8 +41,8 @@ func NewMongoProcessor(config MongoProcessorConfig) *MongoProcessor {
 
 	return &MongoProcessor{
 		config:    config,
-		readPool:  NewPool(url,10),
-		writePool: NewPool(url,10),
+		readPool:  NewPool(url, 10),
+		writePool: NewPool(url, 10),
 	}
 }
 

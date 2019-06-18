@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"github.com/annchain/BlockDB/backends"
 	"github.com/annchain/BlockDB/listener"
 	"github.com/annchain/BlockDB/plugins/client/og"
 	"github.com/annchain/BlockDB/plugins/server/log4j2"
@@ -43,6 +44,18 @@ func (n *Engine) Stop() {
 }
 
 func (n *Engine) registerComponents() {
+
+	var defaultLedgerWriter backends.LedgerWriter
+
+	if viper.GetBool("og.enabled") {
+		url := viper.GetString("og.url")
+		p := og.NewOgProcessor(og.OgProcessorConfig{LedgerUrl: url,
+			IdleConnectionTimeout: time.Second * time.Duration(viper.GetInt("listener.og.idle_connection_seconds")),
+		})
+		defaultLedgerWriter = p
+		n.components = append(n.components, p)
+	}
+
 	// MongoDB incoming
 	if viper.GetBool("listener.mongodb.enabled") {
 		// Incoming connection handler
@@ -56,20 +69,15 @@ func (n *Engine) registerComponents() {
 
 	if viper.GetBool("listener.log4j2Socket.enabled") {
 		// Incoming connection handler
-		p := log4j2.NewLog4j2SocketProcessor(log4j2.Log4j2SocketProcessorConfig{
-			IdleConnectionTimeout: time.Second * time.Duration(viper.GetInt("listener.log4j2Socket.idle_connection_seconds")),
-		})
+		p := log4j2.NewLog4j2SocketProcessor(
+			log4j2.Log4j2SocketProcessorConfig{
+				IdleConnectionTimeout: time.Second * time.Duration(viper.GetInt("listener.log4j2Socket.idle_connection_seconds")),
+			},
+			defaultLedgerWriter,
+		)
 		l := listener.NewGeneralTCPListener(p, viper.GetInt("listener.log4j2Socket.incoming_port"),
 			viper.GetInt("listener.log4j2Socket.incoming_max_connection"))
 		n.components = append(n.components, l)
-	}
-
-	if viper.GetBool("og.enabled") {
-		url := viper.GetString("og.url")
-		p := og.NewOgProcessor(og.OgProcessorConfig{LedgerUrl: url,
-			IdleConnectionTimeout: time.Second * time.Duration(viper.GetInt("listener.og.idle_connection_seconds")),
-		})
-		n.components = append(n.components, p)
 	}
 
 }

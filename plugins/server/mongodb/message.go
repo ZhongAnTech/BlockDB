@@ -2,9 +2,10 @@ package mongodb
 
 import (
 	"bufio"
+	"net"
+
 	"github.com/annchain/BlockDB/common/bytes"
 	"github.com/annchain/BlockDB/processors"
-	"net"
 )
 
 type MongoMessage interface {

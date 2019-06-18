@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/annchain/BlockDB/backends"
 	"github.com/annchain/BlockDB/processors"
 	"github.com/sirupsen/logrus"
 	"io"
@@ -17,12 +18,14 @@ type Log4j2SocketProcessorConfig struct {
 }
 
 type Log4j2SocketProcessor struct {
-	config Log4j2SocketProcessorConfig
+	config       Log4j2SocketProcessorConfig
+	ledgerWriter backends.LedgerWriter
 }
 
-func NewLog4j2SocketProcessor(config Log4j2SocketProcessorConfig) *Log4j2SocketProcessor {
+func NewLog4j2SocketProcessor(config Log4j2SocketProcessorConfig, ledgerWriter backends.LedgerWriter) *Log4j2SocketProcessor {
 	return &Log4j2SocketProcessor{
-		config: config,
+		config:       config,
+		ledgerWriter: ledgerWriter,
 	}
 }
 
@@ -55,12 +58,19 @@ func (m *Log4j2SocketProcessor) ProcessConnection(conn net.Conn) error {
 		//fmt.Println(hex.Dump(bytes))
 		event := m.ParseCommand([]byte(str))
 		if event == nil {
+			logrus.WithError(err).Warn("nil command")
 			continue
 		}
 		event.Ip = conn.RemoteAddr().String()
 		fmt.Printf("%+v\n", event)
 
 		// TODO: store it to blockchain
+		bytes, err := json.Marshal(event)
+		if err != nil {
+			logrus.WithError(err).Warn("cannot marshal event")
+		}
+		logrus.WithField("data", string(bytes)).Info("Send to OG")
+		m.ledgerWriter.SendToLedger(string(bytes))
 	}
 }
 

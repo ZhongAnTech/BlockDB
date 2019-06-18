@@ -10,7 +10,7 @@ import (
 type Pool struct {
 	url string
 
-	max int
+	max      int
 	connChan chan net.Conn
 
 	mu sync.RWMutex
@@ -22,7 +22,7 @@ func NewPool(url string, maxConn int) *Pool {
 	p.url = url
 	p.max = maxConn
 	p.connChan = make(chan net.Conn, maxConn)
-	for i:=0; i<p.max; i++ {
+	for i := 0; i < p.max; i++ {
 		c, err := p.newConn(url)
 		if err != nil {
 			// TODO handle this error
@@ -69,7 +69,7 @@ func (pool *Pool) Acquire() net.Conn {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 
-	conn := <- pool.connChan
+	conn := <-pool.connChan
 
 	return conn
 }
