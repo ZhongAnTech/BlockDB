@@ -50,12 +50,18 @@ func (m *MongoProcessor) ProcessConnection(conn net.Conn) error {
 	defer conn.Close()
 
 	fmt.Println("start process connection")
+
+	// http://docs.mongodb.org/manual/faq/diagnostics/#faq-keepalive
+	if conn, ok := conn.(*net.TCPConn); ok {
+		conn.SetKeepAlivePeriod(2 * time.Minute)
+		conn.SetKeepAlive(true)
+	}
+
 	reader := bufio.NewReader(conn)
 
-	// 1, parse command
-	// 2, dispatch the command to every interested parties
-	//    including chain logger and the real backend mongoDB server
-	// 3, response to conn
+	backend := m.writePool.Acquire()
+	defer m.writePool.Release(backend)
+
 	for {
 		conn.SetReadDeadline(time.Now().Add(m.config.IdleConnectionTimeout))
 
@@ -89,7 +95,7 @@ func (m *MongoProcessor) ProcessConnection(conn net.Conn) error {
 		fmt.Println(fmt.Sprintf("msg body: %x", cmdBody))
 
 		cmdFull := append(cmdHeader, cmdBody...)
-		err = m.messageHandler(cmdFull, conn)
+		err = m.messageHandler(cmdFull, conn, backend)
 		if err != nil {
 			// TODO handle err
 			return err
@@ -99,7 +105,7 @@ func (m *MongoProcessor) ProcessConnection(conn net.Conn) error {
 	return nil
 }
 
-func (m *MongoProcessor) messageHandler(bytes []byte, client net.Conn) error {
+func (m *MongoProcessor) messageHandler(bytes []byte, client, backend net.Conn) error {
 
 	var msg RequestMessage
 	err := msg.Decode(bytes)
@@ -108,23 +114,23 @@ func (m *MongoProcessor) messageHandler(bytes []byte, client net.Conn) error {
 		return err
 	}
 
-	var pool *Pool
-	if msg.ReadOnly() {
-		pool = m.readPool
-	} else {
-		pool = m.writePool
-	}
-	server := pool.Acquire()
-	defer pool.Release(server)
+	//var pool *Pool
+	//if msg.ReadOnly() {
+	//	pool = m.readPool
+	//} else {
+	//	pool = m.writePool
+	//}
+	//backend := pool.Acquire()
+	//defer pool.Release(backend)
 
-	err = msg.WriteTo(server)
+	err = msg.WriteTo(backend)
 	if err != nil {
 		// TODO handle err
 		return err
 	}
 
 	var msgResp ResponseMessage
-	err = msgResp.ReadFromMongo(server)
+	err = msgResp.ReadFromMongo(backend)
 	if err != nil {
 		// TODO handle err
 		return err
