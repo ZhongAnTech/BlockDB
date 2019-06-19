@@ -2,6 +2,7 @@ package mongodb
 
 import (
 	"bufio"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/annchain/BlockDB/common/bytes"
@@ -102,6 +103,8 @@ func (m *MongoProcessor) ProcessConnection(conn net.Conn) error {
 func (m *MongoProcessor) messageHandler(bytes []byte, client net.Conn) error {
 
 	var msg RequestMessage
+	fmt.Println("Request--->")
+	fmt.Println(hex.Dump(bytes))
 	err := msg.Decode(bytes)
 	if err != nil {
 		// TODO handle err
@@ -129,6 +132,8 @@ func (m *MongoProcessor) messageHandler(bytes []byte, client net.Conn) error {
 		// TODO handle err
 		return err
 	}
+	fmt.Println("<---Response")
+	fmt.Println(hex.Dump(msgResp.payload))
 	err = msgResp.WriteTo(client)
 	if err != nil {
 		// TODO handle err

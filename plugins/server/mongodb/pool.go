@@ -8,31 +8,16 @@ import (
 )
 
 type Pool struct {
-	url string
-
+	url      string
 	max      int
 	connChan chan net.Conn
-
-	mu sync.RWMutex
+	mu       sync.RWMutex
 }
 
 func NewPool(url string, maxConn int) *Pool {
 	p := &Pool{}
-
 	p.url = url
 	p.max = maxConn
-	p.connChan = make(chan net.Conn, maxConn)
-	for i := 0; i < p.max; i++ {
-		c, err := p.newConn(url)
-		if err != nil {
-			// TODO handle this error
-			fmt.Println("create conn error: ", err)
-			continue
-		}
-		fmt.Println("successfully create a connection")
-		p.connChan <- c
-	}
-
 	return p
 }
 
