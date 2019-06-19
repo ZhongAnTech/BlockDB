@@ -238,5 +238,7 @@ func initLogger() {
 	if !byModule {
 		logdir = ""
 	}
-	mylog.InitLoggers(logger, logdir)
+	_ = logger
+	//init additinal loggers
+	//mylog.InitLoggers(logger, logdir)
 }
