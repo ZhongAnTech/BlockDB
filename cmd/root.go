@@ -203,9 +203,11 @@ func initLogger() {
 	//log.Println("Standard logger. Am I here?")
 	lineNum := viper.GetBool("log_line_number")
 	if lineNum {
-		filenameHook := mylog.NewHook()
-		filenameHook.Field = "line"
-		logrus.AddHook(filenameHook)
+		//filenameHook := mylog.NewHook()
+		//filenameHook.Field = "line"
+		//logrus.AddHook(filenameHook)
+		//logrus supports line caller now
+		logrus.SetReportCaller(true)
 	}
 	byLevel := viper.GetBool("multifile_by_level")
 	if byLevel && logdir != "" {
@@ -236,5 +238,7 @@ func initLogger() {
 	if !byModule {
 		logdir = ""
 	}
-	mylog.InitLoggers(logger, logdir)
+	_ = logger
+	//init additinal loggers
+	//mylog.InitLoggers(logger, logdir)
 }
