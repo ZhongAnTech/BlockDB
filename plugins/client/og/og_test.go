@@ -6,7 +6,9 @@ import (
 )
 
 func init() {
+	logrus.SetReportCaller(true)
 	logrus.SetLevel(logrus.TraceLevel)
+
 }
 
 func TestNewOgProcessor(t *testing.T) {

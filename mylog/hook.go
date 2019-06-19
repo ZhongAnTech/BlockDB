@@ -20,6 +20,7 @@ import (
 	"strings"
 )
 
+//deprecated object , logrus supports caller now
 type Hook struct {
 	Field     string
 	Skip      int
