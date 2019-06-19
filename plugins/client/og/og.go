@@ -2,6 +2,7 @@ package og
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/annchain/BlockDB/httplib"
 	"github.com/sirupsen/logrus"
@@ -41,56 +42,55 @@ func NewOgProcessor(config OgProcessorConfig) *OgProcessor {
 }
 
 func (o *OgProcessor) SendToLedger(data string) {
-	o.sendToLedger(data)
+	 resData,err := o.sendToLedger(data)
+	if err!=nil {
+		logrus.WithError(err).Warn("send data to og failed")
+		return
+	}
+	logrus.WithField("res ",resData).Debug("got response")
 }
 
 type TxReq struct {
 	Data string `json:"data"`
 }
 
-func (o *OgProcessor) sendToLedger(data string) {
+type Response struct {
+
+	//"data": "0x2f0d3ee49d9eb21a75249b348541574d11f6f70f36c50892b89db3e1dc4a591a",
+	//"message": ""
+	Data  interface{} `json:"data"`
+	Message string  `json:"message"`
+
+}
+
+func (o *OgProcessor) sendToLedger(data string) (resData interface{},err error ){
 	req := httplib.Post(o.config.LedgerUrl)
 	req.SetTimeout(time.Second*10, time.Second*10)
 	txReq := TxReq{
 		Data: data,
 	}
-	_, err := req.JSONBody(&txReq)
+	_, err = req.JSONBody(&txReq)
 	if err != nil {
 		panic(fmt.Errorf("encode tx errror %v", err))
 	}
 	d, _ := json.MarshalIndent(&txReq, "", "\t")
-	fmt.Println(string(d))
+	logrus.WithField("data ", string(d)).Debug("send data to og")
 
-	str, err := req.String()
+	var res Response
+
+	err = req.ToJSON(&res)
 	if err != nil {
-		fmt.Println(err)
-		return
+		logrus.WithError(err).Warn("send data failed")
+		str,e := req.String()
+		logrus.WithField("res ",str).WithError(e).Warn("got response")
+		return  nil,err
 	}
-	fmt.Println(str)
+	if res.Message !="" {
+		err = errors.New(res.Message)
+		logrus.WithError(err).Warn("got error from og")
+		return   nil,err
+	}
+	//logrus.Debug(res,res.Data)
+	return res.Data,nil
 }
 
-//func (m *OgProcessor) ProcessConnection(conn net.Conn) error {
-//	// 1, parse command
-//	// 2, dispatch the command to every interested parties
-//	//    including chain logger and the real backend mongoDB server
-//	// 3, response to conn
-//	for {
-//		conn.SetReadDeadline(time.Now().Add(m.config.IdleConnectionTimeout))
-//		bytes, err := bufio.NewReader(conn).ReadBytes('\n')
-//		if err != nil {
-//			if err == io.EOF {
-//				logrus.Info("target closed")
-//				return nil
-//			} else if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
-//				logrus.Info("target timeout")
-//				conn.Close()
-//				return nil
-//			}
-//			return err
-//		}
-//		// query command
-//		fmt.Println(hex.Dump(bytes))
-//		m.SendToLedger(bytes)
-//	}
-//	return nil
-//}
