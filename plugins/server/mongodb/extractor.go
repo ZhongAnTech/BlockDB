@@ -122,26 +122,37 @@ func extractMessage(header *message.MessageHeader, b []byte) (*message.Message, 
 	switch header.OpCode {
 	case message.OpReply:
 		m.MongoMsg = message.NewReplyMessage(header, b)
+		break
 	case message.OpUpdate:
 		m.MongoMsg = message.NewUpdateMessage(header, b)
+		break
 	case message.OpInsert:
 		m.MongoMsg = message.NewInsertMessage(header, b)
+		break
 	case message.Reserved:
 		m.MongoMsg = message.NewReservedMessage(header, b)
+		break
 	case message.OpQuery:
 		m.MongoMsg = message.NewQueryMessage(header, b)
+		break
 	case message.OpGetMore:
 		m.MongoMsg = message.NewGetMoreMessage(header, b)
+		break
 	case message.OpDelete:
 		m.MongoMsg = message.NewDeleteMessage(header, b)
+		break
 	case message.OpKillCursors:
 		m.MongoMsg = message.NewKillCursorsMessage(header, b)
+		break
 	case message.OpCommand:
 		m.MongoMsg = message.NewCommandMessage(header, b)
+		break
 	case message.OpCommandReply:
 		m.MongoMsg = message.NewCommandReplyMessage(header, b)
+		break
 	case message.OpMsg:
 		m.MongoMsg = message.NewMsgMessage(header, b)
+		break
 	default:
 		return nil, fmt.Errorf("unknown opcode: %d", header.OpCode)
 	}

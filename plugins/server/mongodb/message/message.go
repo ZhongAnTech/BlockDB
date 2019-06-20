@@ -2,6 +2,7 @@ package message
 
 import (
 	"bufio"
+	"fmt"
 	"net"
 	"time"
 
@@ -25,6 +26,11 @@ type MongoMessage interface {
 	ParseCommand() []*processors.LogEvent
 }
 
+func (m *Message) ParseCommand() []*processors.LogEvent {
+	// TODO
+	return nil
+}
+
 type MessageHeader struct {
 	MessageSize int32
 	RequestID   int32
@@ -32,9 +38,27 @@ type MessageHeader struct {
 	OpCode      OpCode
 }
 
-func (m *Message) ParseCommand() []*processors.LogEvent {
-	// TODO
-	return nil
+func readCString(b []byte, pos int) (string, error) {
+	index := -1
+	for i := pos; i < len(b)-pos; i++ {
+		if b[i] == byte(0) {
+			index = i
+			break
+		}
+	}
+	if index < 0 {
+		return "", fmt.Errorf("cannot read full collection name from bytes: %x", b)
+	}
+
+	cBytes := b[pos : index+1]
+	s := ""
+	for len(cBytes) > 0 {
+		s = s + string(cBytes[0])
+		cBytes = cBytes[1:]
+	}
+	fmt.Println("collection full name: ", s)
+
+	return s, nil
 }
 
 // codes below should be deleted.

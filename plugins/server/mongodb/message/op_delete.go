@@ -3,7 +3,7 @@ package message
 import "github.com/annchain/BlockDB/processors"
 
 type DeleteMessage struct {
-	header MessageHeader
+	header *MessageHeader
 
 	// TODO body not implemented
 }

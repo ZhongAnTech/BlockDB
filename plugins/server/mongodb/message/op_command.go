@@ -3,7 +3,7 @@ package message
 import "github.com/annchain/BlockDB/processors"
 
 type CommandMessage struct {
-	header MessageHeader
+	header *MessageHeader
 
 	// TODO body not implemented
 }
