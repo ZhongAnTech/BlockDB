@@ -8,6 +8,27 @@ import (
 	"github.com/annchain/BlockDB/processors"
 )
 
+
+const (
+	headerLen = 16
+)
+
+type OpCode int32
+
+const (
+	opReply        = OpCode(1)
+	opUpdate       = OpCode(2001)
+	opInsert       = OpCode(2002)
+	reserved       = OpCode(2003)
+	opQuery        = OpCode(2004)
+	opGetMore      = OpCode(2005)
+	opDelete       = OpCode(2006)
+	opKillCursor   = OpCode(2007)
+	opCommand      = OpCode(2010)
+	opCommandReply = OpCode(2011)
+	opMsg          = OpCode(2013)
+)
+
 type MongoMessage interface {
 	WriteTo(net.Conn) error
 	ParseCommand() []*processors.LogEvent
@@ -15,23 +36,9 @@ type MongoMessage interface {
 
 type RequestMessage struct {
 	host    string
-	op      int32
+	op      OpCode
 	payload []byte
 }
-
-const (
-	opReply        int32 = 1
-	opUpdate       int32 = 2001
-	opInsert       int32 = 2002
-	reserved       int32 = 2003
-	opQuery        int32 = 2004
-	opGetMore      int32 = 2005
-	opDelete       int32 = 2006
-	opKillCursor   int32 = 2007
-	opCommand      int32 = 2010
-	opCommandReply int32 = 2011
-	opMsg          int32 = 2013
-)
 
 func (m *RequestMessage) ReadOnly() bool {
 	if m.op == opQuery || m.op == opGetMore || m.op == opKillCursor {
@@ -45,7 +52,7 @@ func (m *RequestMessage) ReadOnly() bool {
 }
 
 func (m *RequestMessage) Decode(b []byte) error {
-	m.op = bytes.GetInt32(b, 4)
+	m.op = OpCode(bytes.GetInt32(b, 4))
 	m.payload = b
 
 	return nil
@@ -106,4 +113,11 @@ func (m *ResponseMessage) ParseCommand() []*processors.LogEvent {
 	// TODO parse mongo response message to processor log events.
 
 	return nil
+}
+
+type MessageHeader struct {
+	MessageSize int32
+	RequestID int32
+	ResponseTo int32
+	OpCode OpCode
 }

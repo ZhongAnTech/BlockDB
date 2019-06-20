@@ -15,8 +15,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const headerLen = 16
-
 type MongoProcessor struct {
 	config MongoProcessorConfig
 
