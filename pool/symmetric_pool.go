@@ -5,30 +5,27 @@ import (
 	"github.com/sirupsen/logrus"
 	"io"
 	"net"
-	"sync"
+	"time"
 )
 
 type SymmetricPool struct {
 	MaxTargetConnectionSize int
 	MaxSourceConnectionSize int
+	biMapConn               *BiMapConn
 	builder                 ConnectionBuilder
-	sourceTargetMap         map[net.Conn]net.Conn
-	targetSourceMap         map[net.Conn]net.Conn
-	lock                    sync.RWMutex
 	closed                  bool
 }
 
 func NewSymmetricPool(builder ConnectionBuilder) *SymmetricPool {
 	return &SymmetricPool{
-		sourceTargetMap: make(map[net.Conn]net.Conn),
-		targetSourceMap: make(map[net.Conn]net.Conn),
-		builder:         builder,
+		builder:   builder,
+		biMapConn: NewBiMapConn(),
 	}
 }
 
-// constantly check if all connections are good, by select all of them.
+// relay simply forward the content from source to target, without
 func (p *SymmetricPool) relay(source net.Conn, target net.Conn, spectaculars []io.Writer) {
-	logrus.Info("in")
+	logrus.Trace("in")
 	reader := bufio.NewReader(source)
 
 	// writers
@@ -40,101 +37,84 @@ func (p *SymmetricPool) relay(source net.Conn, target net.Conn, spectaculars []i
 
 	var buffer = make([]byte, 1024)
 	for !p.closed {
-		logrus.Info("gonna read bytes....")
-		size, err := reader.Read(buffer)
-		logrus.WithField("len", size).WithError(err).Info("read bytes")
+		logrus.Trace("gonna read bytes....")
+		sizeRead, err := reader.Read(buffer)
+		logrus.WithField("len", sizeRead).WithError(err).Trace("read bytes")
 		if err == io.EOF {
 			logrus.Info("source closed")
-			_ = p.Close(source)
+			_ = p.quitPair(source)
 			break
 		} else if err != nil {
-			logrus.WithError(err).Error("source error")
-			_ = p.Close(source)
-			return
+			logrus.WithError(err).Trace("source error")
+			_ = p.quitPair(source)
+			break
 		}
-		//else if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
-		//	logrus.Info("source timeout")
-		//	conn.Close()
-		//	return nil
-		//}
 
+		// forward the message to all writers
 		for _, writer := range writers {
-			size2, err := writer.Write(buffer[0:size])
+			sizeWritten, err := writer.Write(buffer[0:sizeRead])
 			_ = writer.Flush()
-			logrus.WithError(err).WithField("len", size2).Info("wrote bytes")
+			logrus.WithError(err).WithField("len", sizeWritten).Trace("wrote bytes")
 			if err != nil {
-				logrus.WithField("len", size2).WithError(err).Error("error on writing")
-				_ = p.Close(source)
+				logrus.WithField("len", sizeWritten).WithError(err).Trace("error on writing")
 				break
 			}
 		}
 	}
 }
 
-func (p *SymmetricPool) StartBidirectional(source net.Conn, target net.Conn) {
-	logrus.Info("start bidirectional")
+func (p *SymmetricPool) StartBidirectionalForwarding(source net.Conn, target net.Conn) {
+	logrus.WithField("from", source.RemoteAddr().String()).WithField("to", target.RemoteAddr().String()).Info("start bidirectional")
 	go p.relay(source, target, []io.Writer{&Dumper{Name: "request"}})
 	go p.relay(target, source, []io.Writer{&Dumper{Name: "response"}})
+
+	go func() {
+		for {
+			logrus.WithField("size", p.biMapConn.Size()).Info("poolsize")
+			time.Sleep(time.Second)
+		}
+	}()
+
 }
 
 // MapConnection tries to build/reuse a backend connection according to the frontend connection
 // If either way is closed, close the opposite one also.
 func (p *SymmetricPool) MapConnection(source net.Conn) (targetConn net.Conn, err error) {
-	if v, ok := p.sourceTargetMap[source]; ok {
-		logrus.Info("connection reuse")
-		return v, nil
-	}
-	logrus.Info("building conn")
+	logrus.Debug("building connection")
 	targetConn, err = p.builder.BuildConnection()
 	if err != nil {
-		logrus.WithError(err).Error("failed to built conn")
+		logrus.WithError(err).Error("failed to build conn")
+		return
 	}
-	logrus.Info("built conn")
+	logrus.Debug("connection built")
+	if targetConn == nil {
+		panic("why nil")
+	}
 
-	// build a map
-	p.lock.Lock()
-	defer p.lock.Unlock()
-	if v, tok := p.sourceTargetMap[source]; tok {
-		// things changed after the first check, do not use this connection
-		logrus.Info("built conn")
-		err = targetConn.Close()
-		return v, nil
-	} else {
-		logrus.Info("register pair")
-		p.sourceTargetMap[source] = targetConn
-		p.targetSourceMap[targetConn] = source
-		return targetConn, nil
+	err = p.biMapConn.RegisterPair(source, targetConn)
+	if err != nil {
+		_ = targetConn.Close()
 	}
-	return targetConn, err
+	return
 }
 
-func (p *SymmetricPool) Close(source net.Conn) error {
-	logrus.Info("closing both")
-	err := source.Close()
+func (p *SymmetricPool) quitPair(part net.Conn) (err error) {
+	logrus.Debug("pair quitting")
+	err = part.Close()
 	if err != nil {
-		logrus.WithError(err).Warn("error on closing source")
+		logrus.WithError(err).Debug("error on closing part")
 	}
-	if v, ok := p.sourceTargetMap[source]; ok {
-		// close the backend
-		err := v.Close()
-		if err != nil {
-			logrus.WithError(err).Warn("error on closing target")
-		}
 
-		delete(p.sourceTargetMap, source)
-		delete(p.targetSourceMap, v)
-		return err
+	// find the counter part and close it also.
+	counterPart := p.biMapConn.UnregisterPair(part)
+	if counterPart == nil {
+		// already unregistered by others
+		return
 	}
-	if v, ok := p.targetSourceMap[source]; ok {
-		// close the backend
-		err := v.Close()
-		if err != nil {
-			logrus.WithError(err).Warn("error on closing target")
-		}
+	err = counterPart.Close()
+	if err != nil {
+		logrus.WithError(err).Debug("error on closing counterpart")
+	}
 
-		delete(p.targetSourceMap, source)
-		delete(p.sourceTargetMap, v)
-		return err
-	}
-	return nil
+	return err
 }

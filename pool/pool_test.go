@@ -31,7 +31,7 @@ func TestPool(t *testing.T) {
 			if err != nil {
 				logrus.WithField("conn", conn.RemoteAddr()).WithError(err).Warn("error on connection")
 			}
-			pool.StartBidirectional(conn, targetConn)
+			pool.StartBidirectionalForwarding(conn, targetConn)
 		}()
 	}
 }
