@@ -4,14 +4,35 @@ import (
 	"fmt"
 	"github.com/annchain/BlockDB/common/bytes"
 	"github.com/annchain/BlockDB/plugins/server/mongodb/message"
+	"io"
 	"sync"
 )
 
-type Extractor interface {
+type Extractor struct {
+	req  ExtractorInterface
+	resp ExtractorInterface
+}
+
+func NewExtractor() *Extractor {
+	return &Extractor{
+		req:  NewRequestExtractor(),
+		resp: NewResponseExtractor(),
+	}
+}
+
+func (e *Extractor) GetIncomingWriter() io.Writer {
+	return e.req
+}
+
+func (e *Extractor) GetOutgoingWriter() io.Writer {
+	return e.resp
+}
+
+type ExtractorInterface interface {
 	Write(p []byte) (n int, err error)
 
 	// init is called when message struct is detected.
-	init(info interface{})
+	init(header *message.MessageHeader)
 
 	// reset() is called when extractor finishes one iteration of extraction.
 	// All the variables are set to origin situations to wait next message
@@ -96,7 +117,21 @@ func (e *RequestExtractor) reset() error {
 type ResponseExtractor struct {
 }
 
-func (e *ResponseExtractor) extract(b []byte) *message.Message {
+func NewResponseExtractor() *ResponseExtractor {
+	return &ResponseExtractor{}
+}
+
+func (e *ResponseExtractor) Write(p []byte) (int, error) {
+	// TODO
+	return 0, nil
+}
+
+func (e *ResponseExtractor) init(header *message.MessageHeader) {
+	// TODO
+
+}
+
+func (e *ResponseExtractor) reset() error {
 	// TODO
 	return nil
 }

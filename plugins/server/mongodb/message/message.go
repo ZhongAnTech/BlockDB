@@ -38,7 +38,9 @@ type MessageHeader struct {
 	OpCode      OpCode
 }
 
-func readCString(b []byte, pos int) (string, error) {
+// readCString read collection full name from byte, starting at pos.
+// Return the collection full name in string and the length of full name.
+func readCString(b []byte, pos int) (string, int, error) {
 	index := -1
 	for i := pos; i < len(b)-pos; i++ {
 		if b[i] == byte(0) {
@@ -47,7 +49,7 @@ func readCString(b []byte, pos int) (string, error) {
 		}
 	}
 	if index < 0 {
-		return "", fmt.Errorf("cannot read full collection name from bytes: %x", b)
+		return "", 0, fmt.Errorf("cannot read full collection name from bytes: %x", b)
 	}
 
 	cBytes := b[pos : index+1]
@@ -58,7 +60,7 @@ func readCString(b []byte, pos int) (string, error) {
 	}
 	fmt.Println("collection full name: ", s)
 
-	return s, nil
+	return s, index - pos + 1, nil
 }
 
 // codes below should be deleted.

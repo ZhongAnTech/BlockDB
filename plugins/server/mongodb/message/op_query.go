@@ -1,14 +1,26 @@
 package message
 
-import "github.com/annchain/BlockDB/processors"
+import (
+	"fmt"
+	"github.com/annchain/BlockDB/processors"
+)
 
 type QueryMessage struct {
 	header *MessageHeader
 
-	// TODO body not implemented
+	flag       string
+	collection string
+	skip       int32
+	limit      int32
+	query      string
+	fields     string
 }
 
 func NewQueryMessage(header *MessageHeader, b []byte) *QueryMessage {
+
+	// TODO not implemented yet.
+
+	fmt.Println(b)
 
 	return nil
 }

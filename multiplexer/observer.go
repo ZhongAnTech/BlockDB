@@ -1,14 +1,14 @@
 package multiplexer
 
 import (
-	"bufio"
 	"encoding/hex"
 	"fmt"
+	"io"
 )
 
 type Observer interface {
-	GetIncomingWriter() *bufio.Writer
-	GetOutgoingWriter() *bufio.Writer
+	GetIncomingWriter() io.Writer
+	GetOutgoingWriter() io.Writer
 }
 
 type ByteDumper struct {
@@ -22,20 +22,20 @@ func (b *ByteDumper) Write(p []byte) (n int, err error) {
 }
 
 type Dumper struct {
-	incoming *bufio.Writer
-	outgoing *bufio.Writer
+	incoming io.Writer
+	outgoing io.Writer
 }
 
 func NewDumper(incomingName string, outgoingName string) *Dumper {
 	return &Dumper{
-		incoming: bufio.NewWriter(&ByteDumper{incomingName}),
-		outgoing: bufio.NewWriter(&ByteDumper{outgoingName}),
+		incoming: &ByteDumper{incomingName},
+		outgoing: &ByteDumper{outgoingName},
 	}
 }
-func (d *Dumper) GetIncomingWriter() *bufio.Writer {
+func (d *Dumper) GetIncomingWriter() io.Writer {
 	return d.incoming
 }
 
-func (d *Dumper) GetOutgoingWriter() *bufio.Writer {
+func (d *Dumper) GetOutgoingWriter() io.Writer {
 	return d.outgoing
 }
