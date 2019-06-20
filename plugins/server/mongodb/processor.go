@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/hex"
 	"fmt"
+	"github.com/annchain/BlockDB/plugins/server/mongodb/message"
 
 	"github.com/annchain/BlockDB/common/bytes"
 
@@ -64,7 +65,7 @@ func (m *MongoProcessor) ProcessConnection(conn net.Conn) error {
 	for {
 		conn.SetReadDeadline(time.Now().Add(m.config.IdleConnectionTimeout))
 
-		cmdHeader := make([]byte, headerLen)
+		cmdHeader := make([]byte, message.HeaderLen)
 		_, err := reader.Read(cmdHeader)
 		if err != nil {
 			if err == io.EOF {
@@ -84,7 +85,7 @@ func (m *MongoProcessor) ProcessConnection(conn net.Conn) error {
 		msgSize := bytes.GetInt32(cmdHeader, 0)
 		fmt.Println("msgsize: ", msgSize)
 
-		cmdBody := make([]byte, msgSize-headerLen)
+		cmdBody := make([]byte, msgSize-message.HeaderLen)
 		_, err = reader.Read(cmdBody)
 		if err != nil {
 			fmt.Println("read body error: ", err)
@@ -106,7 +107,7 @@ func (m *MongoProcessor) ProcessConnection(conn net.Conn) error {
 
 func (m *MongoProcessor) messageHandler(bytes []byte, client, backend net.Conn) error {
 
-	var msg RequestMessage
+	var msg message.RequestMessage
 	fmt.Println("Request--->")
 	fmt.Println(hex.Dump(bytes))
 	err := msg.Decode(bytes)
@@ -130,7 +131,7 @@ func (m *MongoProcessor) messageHandler(bytes []byte, client, backend net.Conn) 
 		return err
 	}
 
-	var msgResp ResponseMessage
+	var msgResp message.ResponseMessage
 	err = msgResp.ReadFromMongo(backend)
 	if err != nil {
 		// TODO handle err
@@ -153,7 +154,7 @@ func (m *MongoProcessor) messageHandler(bytes []byte, client, backend net.Conn) 
 	return nil
 }
 
-func (m *MongoProcessor) handleBlockDBEvents(msg MongoMessage) error {
+func (m *MongoProcessor) handleBlockDBEvents(msg message.Message) error {
 	// TODO not implemented yet
 
 	events := msg.ParseCommand()

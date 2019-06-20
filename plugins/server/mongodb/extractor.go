@@ -3,6 +3,7 @@ package mongodb
 import (
 	"fmt"
 	"github.com/annchain/BlockDB/common/bytes"
+	"github.com/annchain/BlockDB/plugins/server/mongodb/message"
 	"sync"
 )
 
@@ -19,10 +20,10 @@ type Extractor interface {
 }
 
 type RequestExtractor struct {
-	header *MessageHeader
+	header *message.MessageHeader
 	buf    []byte
 
-	extract func(b []byte) (MongoMessage, error)
+	extract func(h *message.MessageHeader, b []byte) (*message.Message, error)
 
 	mu sync.RWMutex
 }
@@ -31,7 +32,7 @@ func NewRequestExtractor() *RequestExtractor {
 	r := &RequestExtractor{}
 
 	r.buf = make([]byte, 0)
-	r.extract = extractMongoMessage
+	r.extract = extractMessage
 
 	return r
 }
@@ -55,7 +56,7 @@ func (e *RequestExtractor) Write(p []byte) (int, error) {
 	e.buf = append(e.buf, b...)
 
 	// init header
-	if e.header == nil && len(e.buf) > headerLen {
+	if e.header == nil && len(e.buf) > message.HeaderLen {
 		header, err := decodeHeader(e.buf)
 		if err != nil {
 			return len(b), err
@@ -67,7 +68,7 @@ func (e *RequestExtractor) Write(p []byte) (int, error) {
 		return len(b), nil
 	}
 
-	msg, err := e.extract(e.buf[:e.header.MessageSize])
+	msg, err := e.extract(e.header, e.buf[:e.header.MessageSize])
 	if err != nil {
 		return len(b), err
 	}
@@ -78,7 +79,7 @@ func (e *RequestExtractor) Write(p []byte) (int, error) {
 	return len(b), nil
 }
 
-func (e *RequestExtractor) init(header *MessageHeader) {
+func (e *RequestExtractor) init(header *message.MessageHeader) {
 	e.header = header
 }
 
@@ -95,27 +96,55 @@ func (e *RequestExtractor) reset() error {
 type ResponseExtractor struct {
 }
 
-func (e *ResponseExtractor) extract(b []byte) MongoMessage {
+func (e *ResponseExtractor) extract(b []byte) *message.Message {
 	// TODO
-
 	return nil
 }
 
-func decodeHeader(b []byte) (*MessageHeader, error) {
-	if len(b) < headerLen {
-		return nil, fmt.Errorf("not enough length for header decoding, expect %d, get %d", headerLen, len(b))
+func decodeHeader(b []byte) (*message.MessageHeader, error) {
+	if len(b) < message.HeaderLen {
+		return nil, fmt.Errorf("not enough length for header decoding, expect %d, get %d", message.HeaderLen, len(b))
 	}
 
-	m := &MessageHeader{
+	m := &message.MessageHeader{
 		MessageSize: bytes.GetInt32(b, 0),
 		RequestID:   bytes.GetInt32(b, 4),
 		ResponseTo:  bytes.GetInt32(b, 8),
-		OpCode:      OpCode(bytes.GetInt32(b, 12)),
+		OpCode:      message.OpCode(bytes.GetInt32(b, 12)),
 	}
 	return m, nil
 }
 
-func extractMongoMessage(b []byte) (MongoMessage, error) {
+func extractMessage(header *message.MessageHeader, b []byte) (*message.Message, error) {
 
-	return nil, nil
+	m := &message.Message{}
+
+	switch header.OpCode {
+	case message.OpReply:
+		m.MongoMsg = message.NewReplyMessage(header, b)
+	case message.OpUpdate:
+		m.MongoMsg = message.NewUpdateMessage(header, b)
+	case message.OpInsert:
+		m.MongoMsg = message.NewInsertMessage(header, b)
+	case message.Reserved:
+		m.MongoMsg = message.NewReservedMessage(header, b)
+	case message.OpQuery:
+		m.MongoMsg = message.NewQueryMessage(header, b)
+	case message.OpGetMore:
+		m.MongoMsg = message.NewGetMoreMessage(header, b)
+	case message.OpDelete:
+		m.MongoMsg = message.NewDeleteMessage(header, b)
+	case message.OpKillCursors:
+		m.MongoMsg = message.NewKillCursorsMessage(header, b)
+	case message.OpCommand:
+		m.MongoMsg = message.NewCommandMessage(header, b)
+	case message.OpCommandReply:
+		m.MongoMsg = message.NewCommandReplyMessage(header, b)
+	case message.OpMsg:
+		m.MongoMsg = message.NewMsgMessage(header, b)
+	default:
+		return nil, fmt.Errorf("unknown opcode: %d", header.OpCode)
+	}
+
+	return m, nil
 }

@@ -1,38 +1,43 @@
-package mongodb
+package message
 
 import (
 	"bufio"
 	"net"
+	"time"
 
 	"github.com/annchain/BlockDB/common/bytes"
 	"github.com/annchain/BlockDB/processors"
 )
 
-
 const (
-	headerLen = 16
+	HeaderLen = 16
 )
 
-type OpCode int32
-
-const (
-	opReply        = OpCode(1)
-	opUpdate       = OpCode(2001)
-	opInsert       = OpCode(2002)
-	reserved       = OpCode(2003)
-	opQuery        = OpCode(2004)
-	opGetMore      = OpCode(2005)
-	opDelete       = OpCode(2006)
-	opKillCursor   = OpCode(2007)
-	opCommand      = OpCode(2010)
-	opCommandReply = OpCode(2011)
-	opMsg          = OpCode(2013)
-)
+type Message struct {
+	Sender    string
+	DBUser    string
+	TimeStamp time.Time
+	MongoMsg  MongoMessage
+}
 
 type MongoMessage interface {
-	WriteTo(net.Conn) error
+	//WriteTo(net.Conn) error
 	ParseCommand() []*processors.LogEvent
 }
+
+type MessageHeader struct {
+	MessageSize int32
+	RequestID   int32
+	ResponseTo  int32
+	OpCode      OpCode
+}
+
+func (m *Message) ParseCommand() []*processors.LogEvent {
+	// TODO
+	return nil
+}
+
+// codes below should be deleted.
 
 type RequestMessage struct {
 	host    string
@@ -41,10 +46,10 @@ type RequestMessage struct {
 }
 
 func (m *RequestMessage) ReadOnly() bool {
-	if m.op == opQuery || m.op == opGetMore || m.op == opKillCursor {
+	if m.op == OpQuery || m.op == OpGetMore || m.op == OpKillCursors {
 		return true
 	}
-	if m.op == opUpdate || m.op == opInsert || m.op == opDelete {
+	if m.op == OpUpdate || m.op == OpInsert || m.op == OpDelete {
 		return false
 	}
 	// TODO more options need to be considered.
@@ -80,19 +85,19 @@ func (m *ResponseMessage) ReadFromMongo(c net.Conn) error {
 
 	reader := bufio.NewReader(c)
 
-	header := make([]byte, headerLen)
+	header := make([]byte, HeaderLen)
 	_, err := reader.Read(header)
 	if err != nil {
 		return err
 	}
 
 	msgSize := bytes.GetInt32(header, 0)
-	if msgSize == headerLen {
+	if msgSize == HeaderLen {
 		m.payload = header
 		return nil
 	}
 
-	body := make([]byte, msgSize-headerLen)
+	body := make([]byte, msgSize-HeaderLen)
 	_, err = reader.Read(body)
 	if err != nil {
 		return err
@@ -113,11 +118,4 @@ func (m *ResponseMessage) ParseCommand() []*processors.LogEvent {
 	// TODO parse mongo response message to processor log events.
 
 	return nil
-}
-
-type MessageHeader struct {
-	MessageSize int32
-	RequestID int32
-	ResponseTo int32
-	OpCode OpCode
 }
