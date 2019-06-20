@@ -1,4 +1,4 @@
-package pool
+package multiplexer
 
 import (
 	"fmt"
@@ -16,7 +16,9 @@ func TestPool(t *testing.T) {
 	}
 
 	builder := NewDefaultTCPConnectionBuilder("172.28.152.101:27017")
-	pool := NewSymmetricPool(builder)
+	observer := NewDumper("req", "resp")
+
+	multiplexer := NewMultiplexer(builder, observer)
 
 	for {
 		conn, err := ln.Accept()
@@ -27,11 +29,11 @@ func TestPool(t *testing.T) {
 		}
 		go func() {
 			// release limit
-			targetConn, err := pool.MapConnection(conn)
+			err := multiplexer.ProcessConnection(conn)
 			if err != nil {
 				logrus.WithField("conn", conn.RemoteAddr()).WithError(err).Warn("error on connection")
 			}
-			pool.StartBidirectionalForwarding(conn, targetConn)
+			multiplexer.Start()
 		}()
 	}
 }
