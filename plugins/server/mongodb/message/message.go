@@ -1,10 +1,8 @@
 package message
 
 import (
+	"encoding/json"
 	"fmt"
-	"time"
-
-	"github.com/annchain/BlockDB/processors"
 )
 
 const (
@@ -12,20 +10,20 @@ const (
 )
 
 type Message struct {
-	Sender    string
-	DBUser    string
-	TimeStamp time.Time
-	MongoMsg  MongoMessage
+	DBUser   string       `json:"db_user"`
+	MongoMsg MongoMessage `json:"db_log"`
 }
 
 type MongoMessage interface {
-	//WriteTo(net.Conn) error
-	ParseCommand() []*processors.LogEvent
+
+	// ParseCommand parses mongo message to json string.
+	//ParseCommand() string
 }
 
-func (m *Message) ParseCommand() []*processors.LogEvent {
-	// TODO
-	return nil
+// ParseCommand parses message to json string.
+func (m *Message) ParseCommand() string {
+	b, _ := json.Marshal(m)
+	return string(b)
 }
 
 type MessageHeader struct {

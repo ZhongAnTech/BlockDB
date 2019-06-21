@@ -5,19 +5,18 @@ import (
 	"fmt"
 
 	"github.com/annchain/BlockDB/common/bytes"
-	"github.com/annchain/BlockDB/processors"
 	"github.com/globalsign/mgo/bson"
 )
 
 type QueryMessage struct {
-	header *MessageHeader
+	Header *MessageHeader
 
-	flags      queryFlags
-	collection string
-	skip       int32
-	limit      int32
-	query      string
-	fields     string
+	Flags      queryFlags `json:"flags"`
+	Collection string     `json:"collection"`
+	Skip       int32      `json:"skip"`
+	Limit      int32      `json:"limit"`
+	Query      string     `json:"query"`
+	Fields     string     `json:"fields"`
 }
 
 func NewQueryMessage(header *MessageHeader, b []byte) *QueryMessage {
@@ -54,19 +53,14 @@ func NewQueryMessage(header *MessageHeader, b []byte) *QueryMessage {
 	// TODO fields needed.
 
 	qm := &QueryMessage{}
-	qm.header = header
-	qm.flags = flags
-	qm.collection = coll
-	qm.skip = skip
-	qm.limit = limit
-	qm.query = string(doc)
+	qm.Header = header
+	qm.Flags = flags
+	qm.Collection = coll
+	qm.Skip = skip
+	qm.Limit = limit
+	qm.Query = string(doc)
 
 	return qm
-}
-
-func (m *QueryMessage) ParseCommand() []*processors.LogEvent {
-
-	return nil
 }
 
 type queryFlags struct {

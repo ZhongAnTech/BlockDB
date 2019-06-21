@@ -61,7 +61,7 @@ func (n *Engine) registerComponents() {
 	if viper.GetBool("listener.mongodb.enabled") {
 		// TODO move mongo url to config
 		builder := multiplexer.NewDefaultTCPConnectionBuilder("172.28.152.101:27017")
-		observerFactory := &mongodb.ExtractorFactory{}
+		observerFactory := mongodb.NewExtractorFactory(defaultLedgerWriter)
 		mp := multiplexer.NewMultiplexer(builder, observerFactory)
 		l := listener.NewGeneralTCPListener(mp, viper.GetInt("listener.mongodb.incoming_port"),
 			viper.GetInt("listener.mongodb.incoming_max_connection"))
