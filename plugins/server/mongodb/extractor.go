@@ -93,6 +93,7 @@ func (e *RequestExtractor) Write(p []byte) (int, error) {
 	if err != nil {
 		return len(b), err
 	}
+
 	// TODO write msg to blockDB.
 	fmt.Println(msg)
 
@@ -151,6 +152,10 @@ func decodeHeader(b []byte) (*message.MessageHeader, error) {
 }
 
 func extractMessage(header *message.MessageHeader, b []byte) (*message.Message, error) {
+	if len(b) != int(header.MessageSize) {
+		return nil, fmt.Errorf("msg bytes length not equal to size in header. "+
+			"Bytes length: %d, header size: %d", len(b), header.MessageSize)
+	}
 
 	m := &message.Message{}
 
