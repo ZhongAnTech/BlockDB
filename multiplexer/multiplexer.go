@@ -32,8 +32,8 @@ func (m *Multiplexer) buildConnection() (target net.Conn, err error) {
 
 func (p *Multiplexer) startBidirectionalForwarding() {
 	logrus.WithField("from", p.source.RemoteAddr().String()).WithField("to", p.target.RemoteAddr().String()).Info("start multiplexer bidirectional forwarding")
-	go p.keepForwarding(p.source, p.target, []*bufio.Writer{p.observer.GetIncomingWriter()})
-	go p.keepForwarding(p.target, p.source, []*bufio.Writer{p.observer.GetOutgoingWriter()})
+	go p.keepForwarding(p.source, p.target, []*bufio.Writer{bufio.NewWriter(p.observer.GetIncomingWriter())})
+	go p.keepForwarding(p.target, p.source, []*bufio.Writer{bufio.NewWriter(p.observer.GetOutgoingWriter())})
 
 	go func() {
 		for {

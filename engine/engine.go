@@ -3,6 +3,7 @@ package engine
 import (
 	"github.com/annchain/BlockDB/backends"
 	"github.com/annchain/BlockDB/listener"
+	"github.com/annchain/BlockDB/multiplexer"
 	"github.com/annchain/BlockDB/plugins/client/og"
 	"github.com/annchain/BlockDB/plugins/server/log4j2"
 	"github.com/annchain/BlockDB/plugins/server/mongodb"
@@ -58,12 +59,13 @@ func (n *Engine) registerComponents() {
 
 	// MongoDB incoming
 	if viper.GetBool("listener.mongodb.enabled") {
-		// Incoming connection handler
-		p := mongodb.NewMongoProcessor(mongodb.MongoProcessorConfig{
-			IdleConnectionTimeout: time.Second * time.Duration(viper.GetInt("listener.mongodb.idle_connection_seconds")),
-		})
-		l := listener.NewGeneralTCPListener(p, viper.GetInt("listener.mongodb.incoming_port"),
+		// TODO move mongo url to config
+		builder := multiplexer.NewDefaultTCPConnectionBuilder("172.28.152.101:27017")
+		observer := mongodb.NewExtractor()
+		mp := multiplexer.NewMultiplexer(builder, observer)
+		l := listener.NewGeneralTCPListener(mp, viper.GetInt("listener.mongodb.incoming_port"),
 			viper.GetInt("listener.mongodb.incoming_max_connection"))
+
 		n.components = append(n.components, l)
 	}
 
