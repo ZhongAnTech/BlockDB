@@ -3,6 +3,7 @@ package message
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/annchain/BlockDB/common/bytes"
 	"github.com/annchain/BlockDB/processors"
 	"github.com/globalsign/mgo/bson"

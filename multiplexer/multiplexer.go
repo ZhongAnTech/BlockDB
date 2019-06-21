@@ -9,17 +9,15 @@ import (
 )
 
 type Multiplexer struct {
-	source                  net.Conn
-	target                  net.Conn
-	observer                Observer
+	observerFactory         ObserverFactory
 	targetConnectionBuilder ConnectionBuilder
 	closed                  bool
 	biMapConn               *BiMapConn
 }
 
-func NewMultiplexer(targetConnectionBuilder ConnectionBuilder, observers Observer) *Multiplexer {
+func NewMultiplexer(targetConnectionBuilder ConnectionBuilder, observerFactory ObserverFactory) *Multiplexer {
 	return &Multiplexer{
-		observer:                observers,
+		observerFactory:         observerFactory,
 		targetConnectionBuilder: targetConnectionBuilder,
 		biMapConn:               NewBiMapConn(),
 	}
@@ -30,17 +28,15 @@ func (m *Multiplexer) buildConnection() (target net.Conn, err error) {
 	return
 }
 
-func (p *Multiplexer) startBidirectionalForwarding() {
-	logrus.WithField("from", p.source.RemoteAddr().String()).WithField("to", p.target.RemoteAddr().String()).Info("start multiplexer bidirectional forwarding")
-	go p.keepForwarding(p.source, p.target, []*bufio.Writer{bufio.NewWriter(p.observer.GetIncomingWriter())})
-	go p.keepForwarding(p.target, p.source, []*bufio.Writer{bufio.NewWriter(p.observer.GetOutgoingWriter())})
+func (p *Multiplexer) StartBidirectionalForwarding(context DialogContext) {
+	logrus.WithField("from", context.Source.RemoteAddr().String()).
+		WithField("to", context.Target.RemoteAddr().String()).
+		Info("start multiplexer bidirectional forwarding")
 
-	go func() {
-		for {
-			logrus.WithField("size", p.biMapConn.Size()).Info("poolsize")
-			time.Sleep(time.Second * 10)
-		}
-	}()
+	observer := p.observerFactory.GetInstance(context)
+
+	go p.keepForwarding(context.Source, context.Target, []*bufio.Writer{bufio.NewWriter(observer.GetIncomingWriter())})
+	go p.keepForwarding(context.Target, context.Source, []*bufio.Writer{bufio.NewWriter(observer.GetOutgoingWriter())})
 }
 
 func (m *Multiplexer) keepForwarding(source net.Conn, target net.Conn, observerWriter []*bufio.Writer) {
@@ -49,18 +45,18 @@ func (m *Multiplexer) keepForwarding(source net.Conn, target net.Conn, observerW
 	writer := bufio.NewWriter(target)
 
 	allWriters := []*bufio.Writer{writer}
-	allWriters = append(allWriters, observerWriter...)
+	//allWriters = append(allWriters, observerWriter...)
 
 	for !m.closed {
 		logrus.Trace("gonna read bytes....")
 		sizeRead, err := reader.Read(buffer)
 		logrus.WithField("len", sizeRead).WithError(err).Trace("read bytes")
 		if err == io.EOF {
-			logrus.WithField("addr", source.RemoteAddr().String()).Info("EOF")
+			logrus.WithField("addr", source.RemoteAddr().String()).Warn("EOF")
 			_ = m.quitPair(source)
 			break
 		} else if err != nil {
-			logrus.WithField("addr", source.RemoteAddr().String()).WithError(err).Info("read error")
+			logrus.WithField("addr", source.RemoteAddr().String()).WithError(err).Warn("read error")
 			_ = m.quitPair(source)
 			break
 		}
@@ -72,35 +68,41 @@ func (m *Multiplexer) keepForwarding(source net.Conn, target net.Conn, observerW
 			_ = writer.Flush()
 			logrus.WithError(err).WithField("len", sizeWritten).Trace("wrote bytes")
 			if err != nil {
-				logrus.WithField("len", sizeWritten).WithError(err).Trace("error on writing")
+				logrus.WithField("len", sizeWritten).WithError(err).Warn("error on writing")
 				break
 			}
 		}
 	}
 }
 
-func (m *Multiplexer) ProcessConnection(conn net.Conn) (err error) {
+func (m *Multiplexer) ProcessConnection(source net.Conn) (err error) {
 	// use connection builder to build a target connection
 	// make pair
 	// monitor them
 	logrus.Trace("in")
-	m.source = conn
 
 	// build a writer
-	m.target, err = m.buildConnection()
+	target, err := m.buildConnection()
 	if err != nil {
 		logrus.WithError(err).Warn("failed to build target connection")
 		// close the conn
-		_ = conn.Close()
+		_ = source.Close()
 		return err
 	}
 	// register both connection in the symmetric pool
-	err = m.biMapConn.RegisterPair(m.source, m.target)
+	err = m.biMapConn.RegisterPair(source, target)
 	if err != nil {
-		_ = m.source.Close()
-		_ = m.target.Close()
+		_ = source.Close()
+		_ = target.Close()
 		return err
 	}
+	// build context to store connection info such as IP, identity, etc
+	context := DialogContext{
+		Source: source,
+		Target: target,
+	}
+
+	m.StartBidirectionalForwarding(context)
 	return nil
 }
 
@@ -108,7 +110,7 @@ func (p *Multiplexer) quitPair(part net.Conn) (err error) {
 	logrus.Debug("pair quitting")
 	err = part.Close()
 	if err != nil {
-		logrus.WithError(err).Debug("error on closing part")
+		logrus.WithError(err).Warn("error on closing part")
 	}
 
 	// find the counter part and close it also.
@@ -119,14 +121,19 @@ func (p *Multiplexer) quitPair(part net.Conn) (err error) {
 	}
 	err = counterPart.Close()
 	if err != nil {
-		logrus.WithError(err).Debug("error on closing counterpart")
+		logrus.WithError(err).Warn("error on closing counterpart")
 	}
 
 	return err
 }
 
 func (m *Multiplexer) Start() {
-	m.startBidirectionalForwarding()
+	go func() {
+		for {
+			logrus.WithField("size", m.biMapConn.Size()).Info("poolsize")
+			time.Sleep(time.Second * 10)
+		}
+	}()
 }
 
 func (m *Multiplexer) Stop() {

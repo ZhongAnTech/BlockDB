@@ -38,9 +38,10 @@ func (m *Log4j2SocketProcessor) Stop() {
 }
 
 func (m *Log4j2SocketProcessor) ProcessConnection(conn net.Conn) error {
+	reader := bufio.NewReader(conn)
 	for {
 		conn.SetReadDeadline(time.Now().Add(m.config.IdleConnectionTimeout))
-		str, err := bufio.NewReader(conn).ReadString(byte(0))
+		str, err := reader.ReadString(byte(0))
 		if err != nil {
 			if err == io.EOF {
 				logrus.Info("target closed")
@@ -64,7 +65,7 @@ func (m *Log4j2SocketProcessor) ProcessConnection(conn net.Conn) error {
 		event.Ip = conn.RemoteAddr().String()
 		fmt.Printf("%+v\n", event)
 
-		// TODO: store it to blockchain
+		// store it to blockchain
 		bytes, err := json.Marshal(event)
 		if err != nil {
 			logrus.WithError(err).Warn("cannot marshal event")

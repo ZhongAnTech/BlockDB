@@ -6,6 +6,10 @@ import (
 	"io"
 )
 
+type ObserverFactory interface {
+	GetInstance(context DialogContext) Observer
+}
+
 type Observer interface {
 	GetIncomingWriter() io.Writer
 	GetOutgoingWriter() io.Writer
