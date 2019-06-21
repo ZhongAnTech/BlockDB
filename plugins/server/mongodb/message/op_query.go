@@ -1,6 +1,7 @@
 package message
 
 import (
+	"encoding/hex"
 	"fmt"
 	"github.com/annchain/BlockDB/processors"
 )
@@ -20,8 +21,7 @@ func NewQueryMessage(header *MessageHeader, b []byte) *QueryMessage {
 
 	// TODO not implemented yet.
 
-	fmt.Println(b)
-
+	fmt.Println(hex.Dump(b))
 	return nil
 }
 

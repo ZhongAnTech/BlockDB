@@ -11,15 +11,15 @@ import (
 type Multiplexer struct {
 	source                  net.Conn
 	target                  net.Conn
-	observer                Observer
+	observerFactory         ObserverFactory
 	targetConnectionBuilder ConnectionBuilder
 	closed                  bool
 	biMapConn               *BiMapConn
 }
 
-func NewMultiplexer(targetConnectionBuilder ConnectionBuilder, observers Observer) *Multiplexer {
+func NewMultiplexer(targetConnectionBuilder ConnectionBuilder, observerFactory ObserverFactory) *Multiplexer {
 	return &Multiplexer{
-		observer:                observers,
+		observerFactory:         observerFactory,
 		targetConnectionBuilder: targetConnectionBuilder,
 		biMapConn:               NewBiMapConn(),
 	}
@@ -32,8 +32,16 @@ func (m *Multiplexer) buildConnection() (target net.Conn, err error) {
 
 func (p *Multiplexer) StartBidirectionalForwarding() {
 	logrus.WithField("from", p.source.RemoteAddr().String()).WithField("to", p.target.RemoteAddr().String()).Info("start multiplexer bidirectional forwarding")
-	go p.keepForwarding(p.source, p.target, []*bufio.Writer{bufio.NewWriter(p.observer.GetIncomingWriter())})
-	go p.keepForwarding(p.target, p.source, []*bufio.Writer{bufio.NewWriter(p.observer.GetOutgoingWriter())})
+	// build context to store connection info such as IP, identity, etc
+	context := DialogContext{
+		Source: p.source,
+		Target: p.target,
+	}
+
+	observer := p.observerFactory.GetInstance(context)
+
+	go p.keepForwarding(p.source, p.target, []*bufio.Writer{bufio.NewWriter(observer.GetIncomingWriter())})
+	go p.keepForwarding(p.target, p.source, []*bufio.Writer{bufio.NewWriter(observer.GetOutgoingWriter())})
 
 	go func() {
 		for {

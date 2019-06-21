@@ -3,21 +3,26 @@ package mongodb
 import (
 	"fmt"
 	"github.com/annchain/BlockDB/common/bytes"
+	"github.com/annchain/BlockDB/multiplexer"
 	"github.com/annchain/BlockDB/plugins/server/mongodb/message"
+	"github.com/annchain/BlockDB/processors"
 	"io"
 	"sync"
+	"time"
 )
+
+type ExtractorFactory struct{}
+
+func (ExtractorFactory) GetInstance(context multiplexer.DialogContext) multiplexer.Observer {
+	return &Extractor{
+		req:  NewRequestExtractor(context),
+		resp: NewResponseExtractor(context),
+	}
+}
 
 type Extractor struct {
 	req  ExtractorInterface
 	resp ExtractorInterface
-}
-
-func NewExtractor() *Extractor {
-	return &Extractor{
-		req:  NewRequestExtractor(),
-		resp: NewResponseExtractor(),
-	}
 }
 
 func (e *Extractor) GetIncomingWriter() io.Writer {
@@ -46,14 +51,16 @@ type RequestExtractor struct {
 
 	extract func(h *message.MessageHeader, b []byte) (*message.Message, error)
 
-	mu sync.RWMutex
+	mu      sync.RWMutex
+	context multiplexer.DialogContext
 }
 
-func NewRequestExtractor() *RequestExtractor {
+func NewRequestExtractor(context multiplexer.DialogContext) *RequestExtractor {
 	r := &RequestExtractor{}
 
 	r.buf = make([]byte, 0)
 	r.extract = extractMessage
+	r.context = context
 
 	return r
 }
@@ -94,7 +101,14 @@ func (e *RequestExtractor) Write(p []byte) (int, error) {
 		return len(b), err
 	}
 	// TODO write msg to blockDB.
-	fmt.Println(msg)
+	logEvent := &processors.LogEvent{
+		Ip:        e.context.Source.RemoteAddr().String(),
+		Data:      "YOUR MESSAGE",
+		Timestamp: int(time.Now().Unix()),
+		Identity:  msg.DBUser,
+	}
+	//TODO: write logEvent to the mongoDB
+	fmt.Println(logEvent)
 
 	e.reset()
 	return len(b), nil
@@ -115,10 +129,13 @@ func (e *RequestExtractor) reset() error {
 }
 
 type ResponseExtractor struct {
+	context multiplexer.DialogContext
 }
 
-func NewResponseExtractor() *ResponseExtractor {
-	return &ResponseExtractor{}
+func NewResponseExtractor(context multiplexer.DialogContext) *ResponseExtractor {
+	return &ResponseExtractor{
+		context: context,
+	}
 }
 
 func (e *ResponseExtractor) Write(p []byte) (int, error) {
