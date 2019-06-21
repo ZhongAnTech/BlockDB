@@ -138,18 +138,18 @@ func (m *MongoProcessor) messageHandler(bytes []byte, client, backend net.Conn) 
 		return err
 	}
 	fmt.Println("<---Response")
-	fmt.Println(hex.Dump(msgResp.payload))
+	//fmt.Println(hex.Dump(msgResp.payload))
 	err = msgResp.WriteTo(client)
 	if err != nil {
 		// TODO handle err
 		return err
 	}
 
-	err = m.handleBlockDBEvents(&msgResp)
-	if err != nil {
-		// TODO handle err
-		return err
-	}
+	//err = m.handleBlockDBEvents(&msgResp)
+	//if err != nil {
+	//	// TODO handle err
+	//	return err
+	//}
 
 	return nil
 }
