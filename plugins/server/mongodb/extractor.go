@@ -106,6 +106,7 @@ func (e *RequestExtractor) Write(p []byte) (int, error) {
 		Data:      "YOUR MESSAGE",
 		Timestamp: int(time.Now().Unix()),
 		Identity:  msg.DBUser,
+		Type:      "mongo",
 	}
 	//TODO: write logEvent to the mongoDB
 	fmt.Println(logEvent)

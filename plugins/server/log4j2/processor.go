@@ -94,6 +94,7 @@ func (m *Log4j2SocketProcessor) ParseCommand(bytes []byte) *processors.LogEvent 
 	event := processors.LogEvent{
 		Timestamp: log4j.Instant.Timestamp,
 		Data:      string(data),
+		Type:      "log4j",
 	}
 	return &event
 
