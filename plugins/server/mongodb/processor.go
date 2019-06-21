@@ -2,7 +2,6 @@ package mongodb
 
 import (
 	"bufio"
-	"encoding/hex"
 	"fmt"
 	"github.com/annchain/BlockDB/plugins/server/mongodb/message"
 
@@ -106,50 +105,50 @@ func (m *MongoProcessor) ProcessConnection(conn net.Conn) error {
 }
 
 func (m *MongoProcessor) messageHandler(bytes []byte, client, backend net.Conn) error {
-
-	var msg message.RequestMessage
-	fmt.Println("Request--->")
-	fmt.Println(hex.Dump(bytes))
-	err := msg.Decode(bytes)
-	if err != nil {
-		// TODO handle err
-		return err
-	}
-
-	//var pool *Pool
-	//if msg.ReadOnly() {
-	//	pool = m.readPool
-	//} else {
-	//	pool = m.writePool
-	//}
-	//backend := pool.Acquire()
-	//defer pool.Release(backend)
-
-	err = msg.WriteTo(backend)
-	if err != nil {
-		// TODO handle err
-		return err
-	}
-
-	var msgResp message.ResponseMessage
-	err = msgResp.ReadFromMongo(backend)
-	if err != nil {
-		// TODO handle err
-		return err
-	}
-	fmt.Println("<---Response")
-	//fmt.Println(hex.Dump(msgResp.payload))
-	err = msgResp.WriteTo(client)
-	if err != nil {
-		// TODO handle err
-		return err
-	}
-
-	//err = m.handleBlockDBEvents(&msgResp)
+	//
+	//var msg message.RequestMessage
+	//fmt.Println("Request--->")
+	//fmt.Println(hex.Dump(bytes))
+	//err := msg.Decode(bytes)
 	//if err != nil {
 	//	// TODO handle err
 	//	return err
 	//}
+	//
+	////var pool *Pool
+	////if msg.ReadOnly() {
+	////	pool = m.readPool
+	////} else {
+	////	pool = m.writePool
+	////}
+	////backend := pool.Acquire()
+	////defer pool.Release(backend)
+	//
+	//err = msg.WriteTo(backend)
+	//if err != nil {
+	//	// TODO handle err
+	//	return err
+	//}
+	//
+	//var msgResp message.ResponseMessage
+	//err = msgResp.ReadFromMongo(backend)
+	//if err != nil {
+	//	// TODO handle err
+	//	return err
+	//}
+	//fmt.Println("<---Response")
+	////fmt.Println(hex.Dump(msgResp.payload))
+	//err = msgResp.WriteTo(client)
+	//if err != nil {
+	//	// TODO handle err
+	//	return err
+	//}
+	//
+	////err = m.handleBlockDBEvents(&msgResp)
+	////if err != nil {
+	////	// TODO handle err
+	////	return err
+	////}
 
 	return nil
 }
