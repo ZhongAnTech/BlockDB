@@ -123,7 +123,7 @@ func NewResponseExtractor() *ResponseExtractor {
 
 func (e *ResponseExtractor) Write(p []byte) (int, error) {
 	// TODO
-	return 0, nil
+	return len(p), nil
 }
 
 func (e *ResponseExtractor) init(header *message.MessageHeader) {
