@@ -1,7 +1,6 @@
 package mongodb
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/annchain/BlockDB/backends"
 	"github.com/annchain/BlockDB/common/bytes"
@@ -123,7 +122,7 @@ func (e *RequestExtractor) Write(p []byte) (int, error) {
 		Type:      "mongo",
 	}
 
-	data, _ := json.Marshal(logEvent)
+	//data, _ := json.Marshal(logEvent)
 	//fmt.Println("log event: ", string(data))
 
 	e.writer.EnqueueSendToLedger(logEvent)

@@ -1,7 +1,6 @@
 package message
 
 import (
-	"fmt"
 	"github.com/annchain/BlockDB/processors"
 )
 

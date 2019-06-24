@@ -154,7 +154,7 @@ func (m *MongoProcessor) messageHandler(bytes []byte, client, backend net.Conn) 
 func (m *MongoProcessor) handleBlockDBEvents(msg message.Message) error {
 	// TODO not implemented yet
 
-	_ := msg.ParseCommand()
+	_ = msg.ParseCommand()
 
 	//fmt.Println("block db events: ", events)
 
