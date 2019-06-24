@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
@@ -150,6 +151,7 @@ func (o *OgProcessor) sendToLedger(data interface{}) (resData interface{}, err e
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		logrus.WithError(err).Fatalf("Couldn't parse response body.")
+		return  nil,err
 	}
 	var respj Response
 	err = json.Unmarshal(body, &respj)
@@ -161,6 +163,11 @@ func (o *OgProcessor) sendToLedger(data interface{}) (resData interface{}, err e
 		err = errors.New(respj.Message)
 		logrus.WithError(err).Warn("got error from og")
 		return nil, err
+	}
+	//check code
+	if response.StatusCode!=http.StatusOK {
+		err = fmt.Errorf("got response code %d ,response status %s",response.StatusCode,response.Status)
+		return nil,err
 	}
 	return respj.Data, nil
 }
