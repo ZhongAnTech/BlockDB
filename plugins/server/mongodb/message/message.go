@@ -53,7 +53,6 @@ func readCString(b []byte, pos int) (string, int, error) {
 		s = s + string(cBytes[0])
 		cBytes = cBytes[1:]
 	}
-	fmt.Println("collection full name: ", s)
 
 	return s, index - pos + 1, nil
 }

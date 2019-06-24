@@ -1,9 +1,7 @@
 package message
 
 import (
-	"encoding/json"
 	"fmt"
-
 	"github.com/annchain/BlockDB/common/bytes"
 	"github.com/globalsign/mgo/bson"
 )
@@ -15,17 +13,17 @@ type QueryMessage struct {
 	Collection string     `json:"collection"`
 	Skip       int32      `json:"skip"`
 	Limit      int32      `json:"limit"`
-	Query      string     `json:"query"`
+	Query      bson.D     `json:"query"`
 	Fields     string     `json:"fields"`
 }
 
-func NewQueryMessage(header *MessageHeader, b []byte) *QueryMessage {
+func NewQueryMessage(header *MessageHeader, b []byte) (*QueryMessage, error) {
+
+	fmt.Println("new query data: ", b)
 
 	// TODO handle errors. Be aware of fatal messages from client.
 	p := make([]byte, len(b))
 	copy(p, b)
-
-	fmt.Println(p)
 
 	p = p[HeaderLen:]
 
@@ -46,8 +44,10 @@ func NewQueryMessage(header *MessageHeader, b []byte) *QueryMessage {
 	docBytes := p[:docSize]
 
 	var docBson bson.D
-	bson.Unmarshal(docBytes, &docBson)
-	doc, _ := json.Marshal(docBson.Map())
+	err := bson.Unmarshal(docBytes, &docBson)
+	if err != nil {
+		return nil, fmt.Errorf("read query document error, cannot unmarshal it to bson, err: %v", err)
+	}
 
 	// read fields
 	// TODO fields needed.
@@ -58,9 +58,9 @@ func NewQueryMessage(header *MessageHeader, b []byte) *QueryMessage {
 	qm.Collection = coll
 	qm.Skip = skip
 	qm.Limit = limit
-	qm.Query = string(doc)
+	qm.Query = docBson
 
-	return qm
+	return qm, nil
 }
 
 type queryFlags struct {

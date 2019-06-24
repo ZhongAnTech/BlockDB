@@ -1,6 +1,9 @@
 package message
 
-import "github.com/annchain/BlockDB/processors"
+import (
+	"fmt"
+	"github.com/annchain/BlockDB/processors"
+)
 
 type CommandReplyMessage struct {
 	header *MessageHeader
@@ -8,9 +11,10 @@ type CommandReplyMessage struct {
 	// TODO body not implemented
 }
 
-func NewCommandReplyMessage(header *MessageHeader, b []byte) *CommandReplyMessage {
+func NewCommandReplyMessage(header *MessageHeader, b []byte) (*CommandReplyMessage, error) {
 
-	return nil
+	fmt.Println("new command reply data: ", b)
+	return nil, nil
 }
 
 func (m *CommandReplyMessage) ParseCommand() []*processors.LogEvent {

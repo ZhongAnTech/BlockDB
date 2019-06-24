@@ -1,6 +1,9 @@
 package message
 
-import "github.com/annchain/BlockDB/processors"
+import (
+	"fmt"
+	"github.com/annchain/BlockDB/processors"
+)
 
 type ReservedMessage struct {
 	header *MessageHeader
@@ -8,9 +11,11 @@ type ReservedMessage struct {
 	// TODO body not implemented
 }
 
-func NewReservedMessage(header *MessageHeader, b []byte) *ReservedMessage {
+func NewReservedMessage(header *MessageHeader, b []byte) (*ReservedMessage, error) {
 
-	return nil
+	fmt.Println("new reserved data: ", b)
+
+	return nil, nil
 }
 
 func (m *ReservedMessage) ParseCommand() []*processors.LogEvent {

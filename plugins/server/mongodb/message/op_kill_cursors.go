@@ -1,6 +1,9 @@
 package message
 
-import "github.com/annchain/BlockDB/processors"
+import (
+	"fmt"
+	"github.com/annchain/BlockDB/processors"
+)
 
 type KillCursorsMessage struct {
 	header *MessageHeader
@@ -8,9 +11,10 @@ type KillCursorsMessage struct {
 	// TODO body not implemented
 }
 
-func NewKillCursorsMessage(header *MessageHeader, b []byte) *KillCursorsMessage {
+func NewKillCursorsMessage(header *MessageHeader, b []byte) (*KillCursorsMessage, error) {
 
-	return nil
+	fmt.Println("new kill cursors data: ", b)
+	return nil, nil
 }
 
 func (m *KillCursorsMessage) ParseCommand() []*processors.LogEvent {
