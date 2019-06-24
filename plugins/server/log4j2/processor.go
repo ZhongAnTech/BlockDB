@@ -2,9 +2,7 @@ package log4j2
 
 import (
 	"bufio"
-	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"github.com/annchain/BlockDB/backends"
 	"github.com/annchain/BlockDB/processors"
 	"github.com/sirupsen/logrus"
@@ -55,7 +53,7 @@ func (m *Log4j2SocketProcessor) ProcessConnection(conn net.Conn) error {
 		}
 		str = str[:len(str)-1]
 		// query command
-		fmt.Println(str)
+		//fmt.Println(str)
 		//fmt.Println(hex.Dump(bytes))
 		event := m.ParseCommand([]byte(str))
 		if event == nil {
@@ -63,7 +61,7 @@ func (m *Log4j2SocketProcessor) ProcessConnection(conn net.Conn) error {
 			continue
 		}
 		event.Ip = conn.RemoteAddr().String()
-		fmt.Printf("%+v\n", event)
+		//fmt.Printf("%+v\n", event)
 
 		// store it to blockchain
 		//bytes, err := json.Marshal(event)
@@ -79,7 +77,7 @@ func (m *Log4j2SocketProcessor) ParseCommand(bytes []byte) *processors.LogEvent 
 	log4j := Log4j2SocketEvent{}
 	if err := json.Unmarshal(bytes, &log4j); err != nil {
 		logrus.WithError(err).Warn("bad format")
-		fmt.Println(hex.Dump(bytes))
+		//fmt.Println(hex.Dump(bytes))
 		return nil
 	}
 	cmap := log4j.ContextMap
@@ -88,7 +86,7 @@ func (m *Log4j2SocketProcessor) ParseCommand(bytes []byte) *processors.LogEvent 
 	data, err := json.Marshal(cmap)
 	if err != nil {
 		logrus.WithError(err).Warn("bad format")
-		fmt.Println(hex.Dump(bytes))
+		//fmt.Println(hex.Dump(bytes))
 		return nil
 	}
 	event := processors.LogEvent{

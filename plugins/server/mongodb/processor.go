@@ -48,7 +48,7 @@ func NewMongoProcessor(config MongoProcessorConfig) *MongoProcessor {
 func (m *MongoProcessor) ProcessConnection(conn net.Conn) error {
 	defer conn.Close()
 
-	fmt.Println("start process connection")
+	//fmt.Println("start process connection")
 
 	// http://docs.mongodb.org/manual/faq/diagnostics/#faq-keepalive
 	if conn, ok := conn.(*net.TCPConn); ok {
@@ -68,11 +68,9 @@ func (m *MongoProcessor) ProcessConnection(conn net.Conn) error {
 		_, err := reader.Read(cmdHeader)
 		if err != nil {
 			if err == io.EOF {
-				fmt.Println("target closed")
 				logrus.Info("target closed")
 				return nil
 			} else if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
-				fmt.Println("target timeout")
 				logrus.Info("target timeout")
 				conn.Close()
 				return nil
@@ -82,16 +80,16 @@ func (m *MongoProcessor) ProcessConnection(conn net.Conn) error {
 
 		// query command
 		msgSize := bytes.GetInt32(cmdHeader, 0)
-		fmt.Println("msgsize: ", msgSize)
+		logrus.WithField("size", msgSize).Trace("msgsize")
 
 		cmdBody := make([]byte, msgSize-message.HeaderLen)
 		_, err = reader.Read(cmdBody)
 		if err != nil {
-			fmt.Println("read body error: ", err)
+			logrus.WithError(err).Warn("read body error")
 			return err
 		}
-		fmt.Println(fmt.Sprintf("msg header: %x", cmdHeader))
-		fmt.Println(fmt.Sprintf("msg body: %x", cmdBody))
+		logrus.Trace(fmt.Sprintf("msg header: %x", cmdHeader))
+		logrus.Trace(fmt.Sprintf("msg body: %x", cmdBody))
 
 		cmdFull := append(cmdHeader, cmdBody...)
 		err = m.messageHandler(cmdFull, conn, backend)
@@ -156,9 +154,9 @@ func (m *MongoProcessor) messageHandler(bytes []byte, client, backend net.Conn) 
 func (m *MongoProcessor) handleBlockDBEvents(msg message.Message) error {
 	// TODO not implemented yet
 
-	events := msg.ParseCommand()
+	_ := msg.ParseCommand()
 
-	fmt.Println("block db events: ", events)
+	//fmt.Println("block db events: ", events)
 
 	return nil
 }

@@ -1,7 +1,6 @@
 package message
 
 import (
-	"fmt"
 	"github.com/annchain/BlockDB/processors"
 )
 
@@ -13,7 +12,7 @@ type KillCursorsMessage struct {
 
 func NewKillCursorsMessage(header *MessageHeader, b []byte) (*KillCursorsMessage, error) {
 
-	fmt.Println("new kill cursors data: ", b)
+	//fmt.Println("new kill cursors data: ", b)
 	return nil, nil
 }
 

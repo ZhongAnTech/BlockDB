@@ -1,7 +1,6 @@
 package message
 
 import (
-	"fmt"
 	"github.com/annchain/BlockDB/processors"
 )
 
@@ -13,7 +12,7 @@ type ReplyMessage struct {
 
 func NewReplyMessage(header *MessageHeader, b []byte) (*ReplyMessage, error) {
 
-	fmt.Println("new reply data: ", b)
+	//fmt.Println("new reply data: ", b)
 
 	return nil, nil
 }
