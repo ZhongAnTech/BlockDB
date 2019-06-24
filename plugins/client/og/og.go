@@ -46,6 +46,7 @@ func NewOgProcessor(config OgProcessorConfig) *OgProcessor {
 	return &OgProcessor{
 		config:     config,
 		dataChan:   make(chan interface{}, config.BufferSize),
+		quit:       make(chan bool),
 		httpClient: createHTTPClient(),
 	}
 }
