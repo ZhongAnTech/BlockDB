@@ -60,6 +60,7 @@ func (o *OgProcessor) EnqueueSendToLedger(data interface{}) {
 func (o *OgProcessor) ConsumeQueue() {
 outside:
 	for {
+		logrus.WithField("size", len(o.dataChan)).Debug("og queue size")
 		select {
 		case data := <-o.dataChan:
 			retry := 0
@@ -67,8 +68,10 @@ outside:
 				resData, err := o.sendToLedger(data)
 				if err != nil {
 					logrus.WithField("retry", retry).WithError(err).Warnf("failed to send to ledger")
+				} else {
+					logrus.WithField("response", resData).Debug("got response")
+					break
 				}
-				logrus.WithField("response", resData).Debug("got response")
 			}
 			if retry == o.config.RetryTimes {
 				logrus.WithField("data", data).Error("failed to send data to ledger. Abandon.")
