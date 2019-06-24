@@ -66,12 +66,12 @@ func (m *Log4j2SocketProcessor) ProcessConnection(conn net.Conn) error {
 		fmt.Printf("%+v\n", event)
 
 		// store it to blockchain
-		bytes, err := json.Marshal(event)
-		if err != nil {
-			logrus.WithError(err).Warn("cannot marshal event")
-		}
-		logrus.WithField("data", string(bytes)).Info("Send to OG")
-		m.ledgerWriter.EnqueueSendToLedger(string(bytes))
+		//bytes, err := json.Marshal(event)
+		//if err != nil {
+		//	logrus.WithError(err).Warn("cannot marshal event")
+		//}
+		//logrus.WithField("data", string(bytes)).Info("Send to OG")
+		m.ledgerWriter.EnqueueSendToLedger(event)
 	}
 }
 

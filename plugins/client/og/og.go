@@ -11,7 +11,7 @@ import (
 
 type OgProcessor struct {
 	config   OgProcessorConfig
-	dataChan chan string
+	dataChan chan interface{}
 	quit     chan bool
 }
 type OgProcessorConfig struct {
@@ -42,11 +42,11 @@ func NewOgProcessor(config OgProcessorConfig) *OgProcessor {
 	}
 	return &OgProcessor{
 		config:   config,
-		dataChan: make(chan string, config.BufferSize),
+		dataChan: make(chan interface{}, config.BufferSize),
 	}
 }
 
-func (o *OgProcessor) EnqueueSendToLedger(data string) {
+func (o *OgProcessor) EnqueueSendToLedger(data interface{}) {
 	o.dataChan <- data
 	resData, err := o.sendToLedger(data)
 
@@ -81,7 +81,7 @@ outside:
 }
 
 type TxReq struct {
-	Data string `json:"data"`
+	Data []byte `json:"data"`
 }
 
 type Response struct {
@@ -96,21 +96,28 @@ func timeTrack(start time.Time, name string) {
 	logrus.Debugf("%s took %s", name, elapsed)
 }
 
-func (o *OgProcessor) sendToLedger(data string) (resData interface{}, err error) {
+func (o *OgProcessor) sendToLedger(data interface{}) (resData interface{}, err error) {
 	defer timeTrack(time.Now(), "sendToLedger")
 
 	req := httplib.Post(o.config.LedgerUrl)
 	req.SetTimeout(time.Second*10, time.Second*10)
+
+	dataBytes, err := json.Marshal(data)
+	if err != nil {
+		//you should provide a method to marshal json
+		panic(err)
+		return nil, err
+	}
 	txReq := TxReq{
-		Data: data,
+		Data: dataBytes,
 	}
 	_, err = req.JSONBody(&txReq)
 	if err != nil {
 		logrus.WithError(err).Error("error on encoding tx")
 		return nil, err
 	}
-	d, _ := json.MarshalIndent(&txReq, "", "\t")
-	logrus.WithField("data ", string(d)).Trace("send data to og")
+	//d, _ := json.MarshalIndent(&txReq, "", "\t")
+	logrus.WithField("data ", string(dataBytes)).Trace("send data to og")
 
 	var res Response
 
