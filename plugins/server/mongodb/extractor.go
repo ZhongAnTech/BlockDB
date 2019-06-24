@@ -1,7 +1,9 @@
 package mongodb
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/annchain/BlockDB/backends"
 	"github.com/annchain/BlockDB/common/bytes"
 	"github.com/annchain/BlockDB/multiplexer"
 	"github.com/annchain/BlockDB/plugins/server/mongodb/message"
@@ -11,12 +13,20 @@ import (
 	"time"
 )
 
-type ExtractorFactory struct{}
+type ExtractorFactory struct {
+	ledgerWriter backends.LedgerWriter
+}
 
-func (ExtractorFactory) GetInstance(context multiplexer.DialogContext) multiplexer.Observer {
+func NewExtractorFactory(writer backends.LedgerWriter) *ExtractorFactory {
+	return &ExtractorFactory{
+		ledgerWriter: writer,
+	}
+}
+
+func (e ExtractorFactory) GetInstance(context multiplexer.DialogContext) multiplexer.Observer {
 	return &Extractor{
-		req:  NewRequestExtractor(context),
-		resp: NewResponseExtractor(context),
+		req:  NewRequestExtractor(context, e.ledgerWriter),
+		resp: NewResponseExtractor(context, e.ledgerWriter),
 	}
 }
 
@@ -46,21 +56,24 @@ type ExtractorInterface interface {
 }
 
 type RequestExtractor struct {
-	header *message.MessageHeader
-	buf    []byte
+	context multiplexer.DialogContext
+	header  *message.MessageHeader
+	buf     []byte
 
 	extract func(h *message.MessageHeader, b []byte) (*message.Message, error)
 
-	mu      sync.RWMutex
-	context multiplexer.DialogContext
+	writer backends.LedgerWriter
+
+	mu sync.RWMutex
 }
 
-func NewRequestExtractor(context multiplexer.DialogContext) *RequestExtractor {
+func NewRequestExtractor(context multiplexer.DialogContext, writer backends.LedgerWriter) *RequestExtractor {
 	r := &RequestExtractor{}
 
 	r.buf = make([]byte, 0)
 	r.extract = extractMessage
 	r.context = context
+	r.writer = writer
 
 	return r
 }
@@ -100,18 +113,22 @@ func (e *RequestExtractor) Write(p []byte) (int, error) {
 	if err != nil {
 		return len(b), err
 	}
-	// TODO write msg to blockDB.
+
 	logEvent := &processors.LogEvent{
 		Ip:        e.context.Source.RemoteAddr().String(),
-		Data:      "YOUR MESSAGE",
+		Data:      msg.ParseCommand(),
 		Timestamp: int(time.Now().Unix()),
 		Identity:  msg.DBUser,
 		Type:      "mongo",
 	}
 	//TODO: write logEvent to the mongoDB
-	fmt.Println(logEvent)
+	//fmt.Println("log event: ", logEvent)
 
+	data, _ := json.Marshal(logEvent)
+	fmt.Println("log event: ", string(data))
+	e.writer.SendToLedger(string(data))
 	e.reset()
+
 	return len(b), nil
 }
 
@@ -131,11 +148,13 @@ func (e *RequestExtractor) reset() error {
 
 type ResponseExtractor struct {
 	context multiplexer.DialogContext
+	writer  backends.LedgerWriter
 }
 
-func NewResponseExtractor(context multiplexer.DialogContext) *ResponseExtractor {
+func NewResponseExtractor(context multiplexer.DialogContext, writer backends.LedgerWriter) *ResponseExtractor {
 	return &ResponseExtractor{
 		context: context,
+		writer:  writer,
 	}
 }
 
@@ -169,6 +188,10 @@ func decodeHeader(b []byte) (*message.MessageHeader, error) {
 }
 
 func extractMessage(header *message.MessageHeader, b []byte) (*message.Message, error) {
+	if len(b) != int(header.MessageSize) {
+		return nil, fmt.Errorf("msg bytes length not equal to size in header. "+
+			"Bytes length: %d, header size: %d", len(b), header.MessageSize)
+	}
 
 	m := &message.Message{}
 

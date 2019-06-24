@@ -45,7 +45,7 @@ func (m *Multiplexer) keepForwarding(source net.Conn, target net.Conn, observerW
 	writer := bufio.NewWriter(target)
 
 	allWriters := []*bufio.Writer{writer}
-	//allWriters = append(allWriters, observerWriter...)
+	allWriters = append(allWriters, observerWriter...)
 
 	for !m.closed {
 		logrus.Trace("gonna read bytes....")

@@ -1,13 +1,8 @@
 package message
 
 import (
-	"bufio"
+	"encoding/json"
 	"fmt"
-	"net"
-	"time"
-
-	"github.com/annchain/BlockDB/common/bytes"
-	"github.com/annchain/BlockDB/processors"
 )
 
 const (
@@ -15,20 +10,20 @@ const (
 )
 
 type Message struct {
-	Sender    string
-	DBUser    string
-	TimeStamp time.Time
-	MongoMsg  MongoMessage
+	DBUser   string       `json:"db_user"`
+	MongoMsg MongoMessage `json:"db_log"`
 }
 
 type MongoMessage interface {
-	//WriteTo(net.Conn) error
-	ParseCommand() []*processors.LogEvent
+
+	// ParseCommand parses mongo message to json string.
+	//ParseCommand() string
 }
 
-func (m *Message) ParseCommand() []*processors.LogEvent {
-	// TODO
-	return nil
+// ParseCommand parses message to json string.
+func (m *Message) ParseCommand() string {
+	b, _ := json.Marshal(m)
+	return string(b)
 }
 
 type MessageHeader struct {
@@ -63,85 +58,20 @@ func readCString(b []byte, pos int) (string, int, error) {
 	return s, index - pos + 1, nil
 }
 
-// codes below should be deleted.
-
-type RequestMessage struct {
-	host    string
-	op      OpCode
-	payload []byte
-}
-
-func (m *RequestMessage) ReadOnly() bool {
-	if m.op == OpQuery || m.op == OpGetMore || m.op == OpKillCursors {
-		return true
-	}
-	if m.op == OpUpdate || m.op == OpInsert || m.op == OpDelete {
+// isFlagSet checks flag status. Return true when it is on, otherwise false.
+func isFlagSet(b []byte, pos int, flagPos int) bool {
+	// flag must in [0, 31]
+	if flagPos > 31 || flagPos < 0 {
 		return false
 	}
-	// TODO more options need to be considered.
-	return false
-}
 
-func (m *RequestMessage) Decode(b []byte) error {
-	m.op = OpCode(bytes.GetInt32(b, 4))
-	m.payload = b
-
-	return nil
-}
-
-func (m *RequestMessage) ParseCommand() []*processors.LogEvent {
-	// TODO parse mongo message to processor log events.
-
-	return nil
-}
-
-func (m *RequestMessage) WriteTo(c net.Conn) error {
-	// TODO write msg to connection
-
-	_, err := c.Write(m.payload)
-	return err
-}
-
-type ResponseMessage struct {
-	payload []byte
-}
-
-func (m *ResponseMessage) ReadFromMongo(c net.Conn) error {
-	// TODO read response from mongodb connection.
-
-	reader := bufio.NewReader(c)
-
-	header := make([]byte, HeaderLen)
-	_, err := reader.Read(header)
-	if err != nil {
-		return err
+	offset := flagPos / 8
+	left := uint(flagPos - offset*8)
+	p := b[pos+offset]
+	p = p << (8 - (left + 1))
+	p = p >> (left)
+	if p == 0 {
+		return false
 	}
-
-	msgSize := bytes.GetInt32(header, 0)
-	if msgSize == HeaderLen {
-		m.payload = header
-		return nil
-	}
-
-	body := make([]byte, msgSize-HeaderLen)
-	_, err = reader.Read(body)
-	if err != nil {
-		return err
-	}
-
-	m.payload = append(header, body...)
-	return nil
-}
-
-func (m *ResponseMessage) WriteTo(c net.Conn) error {
-	// TODO write msg to connection
-
-	_, err := c.Write(m.payload)
-	return err
-}
-
-func (m *ResponseMessage) ParseCommand() []*processors.LogEvent {
-	// TODO parse mongo response message to processor log events.
-
-	return nil
+	return true
 }
