@@ -79,8 +79,8 @@ func (o *OgProcessor) sendToLedger(data interface{}) (resData interface{}, err e
 	if err != nil {
 		panic(fmt.Errorf("encode tx errror %v", err))
 	}
-	d, _ := json.MarshalIndent(&txReq, "", "\t")
-	logrus.WithField("data ", string(d)).Debug("send data to og")
+	//d, _ := json.MarshalIndent(&txReq, "", "\t")
+	logrus.WithField("data ", string(dataBytes)).Debug("send data to og")
 
 	var res Response
 
