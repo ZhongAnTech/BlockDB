@@ -42,7 +42,10 @@ type testObjectData struct {
 }
 
 func TestNewOgProcessor(t *testing.T) {
+	logrus.SetLevel(logrus.TraceLevel)
 	p := NewOgProcessor(OgProcessorConfig{LedgerUrl: "http://172.28.152.101:8000//new_archive"})
+	p.Start()
+	defer p.Stop()
 	p.EnqueueSendToLedger("this is a message")
 	data := testData{
 		A: 45566,
