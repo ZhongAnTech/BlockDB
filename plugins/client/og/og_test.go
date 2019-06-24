@@ -1,6 +1,8 @@
 package og
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/sirupsen/logrus"
 	"testing"
 )
@@ -11,7 +13,47 @@ func init() {
 
 }
 
+type testData struct {
+     A int
+     B string
+     c  float64
+     D  Complex
+     F testObjectData
+}
+
+type Complex complex128
+
+func (c Complex)MarshalJSON() ([]byte, error) {
+	r:= real(c)
+	i:= imag(c)
+	var s string
+	if i > 0 {
+		s= fmt.Sprintf("%f + i%f", r ,i)
+	}else {
+		s = fmt.Sprintf("%f - i%f", real(c) ,-i)
+	}
+	return json.Marshal(&s)
+}
+
+type testObjectData struct {
+	H  []byte
+	K  uint32
+	L  string
+}
+
 func TestNewOgProcessor(t *testing.T) {
 	p := NewOgProcessor(OgProcessorConfig{LedgerUrl: "http://172.28.152.101:8000//new_archive"})
 	p.SendToLedger("this is a message")
+	data := testData{
+		A:45566,
+		B:"what is this ? a message ?, test message",
+		c:56.78,
+		D:complex(34.566,78.9023),
+		F:testObjectData{
+			H: []byte{0x04,0x05,0x06,0x07,0x08,0x09},
+			K:67,
+			L:"this this a string of test message",
+		},
+	}
+	p.SendToLedger(&data)
 }

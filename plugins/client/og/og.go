@@ -68,6 +68,8 @@ func (o *OgProcessor) sendToLedger(data interface{}) (resData interface{}, err e
 
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
+		//you should provide a method to marshal json
+		panic(err)
 		return nil, err
 	}
 	txReq := TxReq{
