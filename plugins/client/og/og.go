@@ -41,7 +41,7 @@ func NewOgProcessor(config OgProcessorConfig) *OgProcessor {
 	}
 }
 
-func (o *OgProcessor) SendToLedger(data string) {
+func (o *OgProcessor) SendToLedger(data interface{}) {
 	resData, err := o.sendToLedger(data)
 	if err != nil {
 		logrus.WithError(err).Warn("send data to og failed")
@@ -51,7 +51,7 @@ func (o *OgProcessor) SendToLedger(data string) {
 }
 
 type TxReq struct {
-	Data string `json:"data"`
+	Data []byte `json:"data"`
 }
 
 type Response struct {
@@ -62,11 +62,16 @@ type Response struct {
 	Message string      `json:"message"`
 }
 
-func (o *OgProcessor) sendToLedger(data string) (resData interface{}, err error) {
+func (o *OgProcessor) sendToLedger(data interface{}) (resData interface{}, err error) {
 	req := httplib.Post(o.config.LedgerUrl)
 	req.SetTimeout(time.Second*10, time.Second*10)
+
+	dataBytes, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
 	txReq := TxReq{
-		Data: data,
+		Data: dataBytes,
 	}
 	_, err = req.JSONBody(&txReq)
 	if err != nil {

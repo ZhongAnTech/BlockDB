@@ -1,5 +1,5 @@
 package backends
 
 type LedgerWriter interface {
-	SendToLedger(data string)
+	SendToLedger(data interface{})
 }

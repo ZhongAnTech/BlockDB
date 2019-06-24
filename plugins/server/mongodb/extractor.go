@@ -121,12 +121,11 @@ func (e *RequestExtractor) Write(p []byte) (int, error) {
 		Timestamp: int(time.Now().Unix()),
 		Identity:  msg.DBUser,
 	}
-	//TODO: write logEvent to the mongoDB
-	//fmt.Println("log event: ", logEvent)
 
 	data, _ := json.Marshal(logEvent)
 	fmt.Println("log event: ", string(data))
-	e.writer.SendToLedger(string(data))
+
+	e.writer.SendToLedger(logEvent)
 	e.reset()
 
 	return len(b), nil
