@@ -13,5 +13,5 @@ func init() {
 
 func TestNewOgProcessor(t *testing.T) {
 	p := NewOgProcessor(OgProcessorConfig{LedgerUrl: "http://172.28.152.101:8000//new_archive"})
-	p.SendToLedger("this is a message")
+	p.EnqueueSendToLedger("this is a message")
 }

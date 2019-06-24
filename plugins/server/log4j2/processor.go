@@ -71,7 +71,7 @@ func (m *Log4j2SocketProcessor) ProcessConnection(conn net.Conn) error {
 			logrus.WithError(err).Warn("cannot marshal event")
 		}
 		logrus.WithField("data", string(bytes)).Info("Send to OG")
-		m.ledgerWriter.SendToLedger(string(bytes))
+		m.ledgerWriter.EnqueueSendToLedger(string(bytes))
 	}
 }
 

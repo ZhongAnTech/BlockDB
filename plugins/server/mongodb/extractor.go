@@ -1,6 +1,7 @@
 package mongodb
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/annchain/BlockDB/backends"
@@ -87,7 +88,7 @@ func NewRequestExtractor(context multiplexer.DialogContext, writer backends.Ledg
 // Implementations must not retain p.
 func (e *RequestExtractor) Write(p []byte) (int, error) {
 
-	fmt.Println("new Write byte: ", p)
+	fmt.Println("new Write byte: ", hex.Dump((p)))
 
 	b := make([]byte, len(p))
 	copy(b, p)
@@ -127,7 +128,7 @@ func (e *RequestExtractor) Write(p []byte) (int, error) {
 
 	data, _ := json.Marshal(logEvent)
 	fmt.Println("log event: ", string(data))
-	e.writer.SendToLedger(string(data))
+	e.writer.EnqueueSendToLedger(string(data))
 	e.reset()
 
 	return len(b), nil
