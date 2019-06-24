@@ -78,8 +78,6 @@ func NewRequestExtractor(context multiplexer.DialogContext, writer backends.Ledg
 	return r
 }
 
-// Writer is the interface that wraps the basic Write method.
-//
 // Write writes len(p) bytes from p to the underlying data stream.
 // It returns the number of bytes written from p (0 <= n <= len(p))
 // and any error encountered that caused the write to stop early.
@@ -88,6 +86,9 @@ func NewRequestExtractor(context multiplexer.DialogContext, writer backends.Ledg
 //
 // Implementations must not retain p.
 func (e *RequestExtractor) Write(p []byte) (int, error) {
+
+	fmt.Println("new Write byte: ", p)
+
 	b := make([]byte, len(p))
 	copy(b, p)
 
@@ -116,7 +117,7 @@ func (e *RequestExtractor) Write(p []byte) (int, error) {
 
 	logEvent := &processors.LogEvent{
 		Ip:        e.context.Source.RemoteAddr().String(),
-		Data:      msg.ParseCommand(),
+		Data:      msg,
 		Timestamp: int(time.Now().Unix()),
 		Identity:  msg.DBUser,
 	}
@@ -192,45 +193,50 @@ func extractMessage(header *message.MessageHeader, b []byte) (*message.Message, 
 			"Bytes length: %d, header size: %d", len(b), header.MessageSize)
 	}
 
-	m := &message.Message{}
-
+	var err error
+	var mm message.MongoMessage
 	switch header.OpCode {
 	case message.OpReply:
-		m.MongoMsg = message.NewReplyMessage(header, b)
+		mm, err = message.NewReplyMessage(header, b)
 		break
 	case message.OpUpdate:
-		m.MongoMsg = message.NewUpdateMessage(header, b)
+		mm, err = message.NewUpdateMessage(header, b)
 		break
 	case message.OpInsert:
-		m.MongoMsg = message.NewInsertMessage(header, b)
+		mm, err = message.NewInsertMessage(header, b)
 		break
 	case message.Reserved:
-		m.MongoMsg = message.NewReservedMessage(header, b)
+		mm, err = message.NewReservedMessage(header, b)
 		break
 	case message.OpQuery:
-		m.MongoMsg = message.NewQueryMessage(header, b)
+		mm, err = message.NewQueryMessage(header, b)
 		break
 	case message.OpGetMore:
-		m.MongoMsg = message.NewGetMoreMessage(header, b)
+		mm, err = message.NewGetMoreMessage(header, b)
 		break
 	case message.OpDelete:
-		m.MongoMsg = message.NewDeleteMessage(header, b)
+		mm, err = message.NewDeleteMessage(header, b)
 		break
 	case message.OpKillCursors:
-		m.MongoMsg = message.NewKillCursorsMessage(header, b)
+		mm, err = message.NewKillCursorsMessage(header, b)
 		break
 	case message.OpCommand:
-		m.MongoMsg = message.NewCommandMessage(header, b)
+		mm, err = message.NewCommandMessage(header, b)
 		break
 	case message.OpCommandReply:
-		m.MongoMsg = message.NewCommandReplyMessage(header, b)
+		mm, err = message.NewCommandReplyMessage(header, b)
 		break
 	case message.OpMsg:
-		m.MongoMsg = message.NewMsgMessage(header, b)
+		mm, err = message.NewMsgMessage(header, b)
 		break
 	default:
 		return nil, fmt.Errorf("unknown opcode: %d", header.OpCode)
 	}
+	if err != nil {
+		return nil, fmt.Errorf("init mongo message error: %v", err)
+	}
 
+	m := &message.Message{}
+	m.MongoMsg = mm
 	return m, nil
 }

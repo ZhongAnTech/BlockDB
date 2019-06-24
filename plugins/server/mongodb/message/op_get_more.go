@@ -1,6 +1,9 @@
 package message
 
-import "github.com/annchain/BlockDB/processors"
+import (
+	"fmt"
+	"github.com/annchain/BlockDB/processors"
+)
 
 type GetMoreMessage struct {
 	header *MessageHeader
@@ -8,9 +11,10 @@ type GetMoreMessage struct {
 	// TODO body not implemented
 }
 
-func NewGetMoreMessage(header *MessageHeader, b []byte) *GetMoreMessage {
+func NewGetMoreMessage(header *MessageHeader, b []byte) (*GetMoreMessage, error) {
 
-	return nil
+	fmt.Println("new get more data: ", b)
+	return nil, nil
 }
 
 func (m *GetMoreMessage) ParseCommand() []*processors.LogEvent {

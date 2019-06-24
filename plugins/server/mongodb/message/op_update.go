@@ -1,6 +1,9 @@
 package message
 
-import "github.com/annchain/BlockDB/processors"
+import (
+	"fmt"
+	"github.com/annchain/BlockDB/processors"
+)
 
 type UpdateMessage struct {
 	header     *MessageHeader
@@ -10,7 +13,9 @@ type UpdateMessage struct {
 	update     string
 }
 
-func NewUpdateMessage(header *MessageHeader, b []byte) *UpdateMessage {
+func NewUpdateMessage(header *MessageHeader, b []byte) (*UpdateMessage, error) {
+
+	fmt.Println("new update data: ", b)
 
 	b = b[HeaderLen+4:]
 	coll, collLen, _ := readCString(b, 0)
@@ -22,7 +27,7 @@ func NewUpdateMessage(header *MessageHeader, b []byte) *UpdateMessage {
 
 	// TODO extract selector and update parts
 
-	return nil
+	return nil, nil
 }
 
 func (m *UpdateMessage) ParseCommand() []*processors.LogEvent {
