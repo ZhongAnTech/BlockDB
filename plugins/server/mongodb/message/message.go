@@ -1,7 +1,6 @@
 package message
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/annchain/BlockDB/common/bytes"
 	"github.com/globalsign/mgo/bson"
@@ -13,20 +12,16 @@ const (
 )
 
 type Message struct {
-	DBUser   string       `json:"db_user"`
-	MongoMsg MongoMessage `json:"db_log"`
+	DBUser     string       `json:"db_user"`
+	DB         string       `json:"db"`
+	Collection string       `json:"collection"`
+	Op         string       `json:"op"`
+	DocID      string       `json:"id"`
+	MongoMsg   MongoMessage `json:"db_log"`
 }
 
 type MongoMessage interface {
-
-	// ParseCommand parses mongo message to json string.
-	// ParseCommand() string
-}
-
-// ParseCommand parses message to json string.
-func (m *Message) ParseCommand() string {
-	b, _ := json.Marshal(m)
-	return string(b)
+	ExtractBasic() (user, db, collection, op, docId string)
 }
 
 type MessageHeader struct {
@@ -137,7 +132,7 @@ func init() {
 var FlagUIntSet [32]uint32
 var FlagIntSet [32]int32
 
-var flagSetBinary [32]string = [32]string{
+var flagSetBinary = [32]string{
 	"00000000" + "00000000" + "00000000" + "00000001",
 	"00000000" + "00000000" + "00000000" + "00000010",
 	"00000000" + "00000000" + "00000000" + "00000100",

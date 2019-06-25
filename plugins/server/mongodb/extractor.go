@@ -1,6 +1,7 @@
 package mongodb
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"sync"
@@ -113,6 +114,12 @@ func (e *RequestExtractor) Write(p []byte) (int, error) {
 	if err != nil {
 		return len(b), err
 	}
+	// set user to context
+	if msg.DBUser != "" {
+		e.context.User = msg.DBUser
+	} else {
+		msg.DBUser = e.context.User
+	}
 
 	logEvent := &processors.LogEvent{
 		Type:      "mongodb",
@@ -122,8 +129,8 @@ func (e *RequestExtractor) Write(p []byte) (int, error) {
 		Identity:  msg.DBUser,
 	}
 
-	//data, _ := json.Marshal(logEvent)
-	//fmt.Println("log event: ", string(data))
+	data, _ := json.Marshal(logEvent)
+	fmt.Println("log event: ", string(data))
 
 	e.writer.EnqueueSendToLedger(logEvent)
 	e.reset()
@@ -182,34 +189,43 @@ func extractMessage(header *message.MessageHeader, b []byte) (*message.Message, 
 	var mm message.MongoMessage
 	switch header.OpCode {
 	case message.OpReply:
-		mm, err = message.NewReplyMessage(header, b)
+		fmt.Println("Extraction for OpReply not implemented")
+		//mm, err = message.NewReplyMessage(header, b)
 		break
 	case message.OpUpdate:
-		mm, err = message.NewUpdateMessage(header, b)
+		fmt.Println("Extraction for OpUpdate not implemented")
+		//mm, err = message.NewUpdateMessage(header, b)
 		break
 	case message.OpInsert:
-		mm, err = message.NewInsertMessage(header, b)
+		fmt.Println("Extraction for OpInsert not implemented")
+		//mm, err = message.NewInsertMessage(header, b)
 		break
 	case message.Reserved:
-		mm, err = message.NewReservedMessage(header, b)
+		fmt.Println("Extraction for Reserved not implemented")
+		//mm, err = message.NewReservedMessage(header, b)
 		break
 	case message.OpQuery:
 		mm, err = message.NewQueryMessage(header, b)
 		break
 	case message.OpGetMore:
-		mm, err = message.NewGetMoreMessage(header, b)
+		fmt.Println("Extraction for OpGetMore not implemented")
+		//mm, err = message.NewGetMoreMessage(header, b)
 		break
 	case message.OpDelete:
-		mm, err = message.NewDeleteMessage(header, b)
+		fmt.Println("Extraction for OpDelete not implemented")
+		//mm, err = message.NewDeleteMessage(header, b)
 		break
 	case message.OpKillCursors:
-		mm, err = message.NewKillCursorsMessage(header, b)
+		fmt.Println("Extraction for OpKillCursors not implemented")
+		//mm, err = message.NewKillCursorsMessage(header, b)
 		break
 	case message.OpCommand:
-		mm, err = message.NewCommandMessage(header, b)
+		fmt.Println("Extraction for OpCommand not implemented")
+		//mm, err = message.NewCommandMessage(header, b)
 		break
 	case message.OpCommandReply:
-		mm, err = message.NewCommandReplyMessage(header, b)
+		fmt.Println("Extraction for OpCommandReply not implemented")
+		//mm, err = message.NewCommandReplyMessage(header, b)
 		break
 	case message.OpMsg:
 		mm, err = message.NewMsgMessage(header, b)
@@ -221,7 +237,15 @@ func extractMessage(header *message.MessageHeader, b []byte) (*message.Message, 
 		return nil, fmt.Errorf("init mongo message error: %v", err)
 	}
 
+	user, db, collection, op, docId := mm.ExtractBasic()
+
 	m := &message.Message{}
+	m.DBUser = user
+	m.DB = db
+	m.Collection = collection
+	m.Op = op
+	m.DocID = docId
 	m.MongoMsg = mm
+
 	return m, nil
 }

@@ -59,10 +59,54 @@ func NewMsgMessage(header *MessageHeader, b []byte) (*MsgMessage, error) {
 	return mm, nil
 }
 
+func (mm *MsgMessage) ExtractBasic() (user, db, collection, op, docId string) {
+	if len(mm.Sections) <= 0 {
+		return
+	}
+	secBody, ok := mm.Sections[0].(*sectionBody)
+	if !ok {
+		return
+	}
+	doc := secBody.Document.Map()
+	// user
+	if v, ok := doc["saslSupportedMechs"]; ok {
+		user = v.(string)
+	}
+	// db
+	if v, ok := doc["$db"]; ok {
+		db = v.(string)
+	}
+	// op and collection
+	if v, ok := doc["update"]; ok {
+		op = "update"
+		collection = v.(string)
+	} else if v, ok := doc["insert"]; ok {
+		op = "insert"
+		collection = v.(string)
+	} else if v, ok := doc["query"]; ok {
+		op = "query"
+		collection = v.(string)
+	} else if v, ok := doc["delete"]; ok {
+		op = "delete"
+		collection = v.(string)
+	}
+	// doc id
+
+	//if len(mm.Sections) <= 1 {
+	//	return
+	//}
+	//secSeq, ok := mm.Sections[1].(*sectionDocumentSequence)
+	//if !ok {
+	//	return
+	//}
+	//
+	return
+}
+
 type msgFlags struct {
-	CheckSumPresent bool
-	MoreToCome      bool
-	ExhaustAllowed  bool
+	CheckSumPresent bool `json:"check_sum"`
+	MoreToCome      bool `json:"more_to_come"`
+	ExhaustAllowed  bool `json:"exhaust_allowed"`
 }
 
 func newMsgFlags(b []byte, pos int) msgFlags {
@@ -166,7 +210,6 @@ func (s *sectionDocumentSequence) kind() sectionType {
 type sectionType byte
 
 const (
-	// TODO check if sectionType is proper to be a byte
 	singleDocument sectionType = iota
 	documentSequence
 )

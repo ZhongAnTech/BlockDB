@@ -9,12 +9,12 @@ import (
 type QueryMessage struct {
 	Header *MessageHeader
 
-	Flags      queryFlags `json:"flags"`
-	Collection string     `json:"collection"`
-	Skip       int32      `json:"skip"`
-	Limit      int32      `json:"limit"`
-	Query      bson.D     `json:"query"`
-	Fields     string     `json:"fields"`
+	Flags  queryFlags `json:"flags"`
+	coll   string     `json:"collection"`
+	Skip   int32      `json:"skip"`
+	Limit  int32      `json:"limit"`
+	Query  bson.D     `json:"query"`
+	Fields string     `json:"fields"`
 }
 
 func NewQueryMessage(header *MessageHeader, b []byte) (*QueryMessage, error) {
@@ -54,12 +54,16 @@ func NewQueryMessage(header *MessageHeader, b []byte) (*QueryMessage, error) {
 	qm := &QueryMessage{}
 	qm.Header = header
 	qm.Flags = flags
-	qm.Collection = coll
+	qm.coll = coll
 	qm.Skip = skip
 	qm.Limit = limit
 	qm.Query = docBson
 
 	return qm, nil
+}
+
+func (qm *QueryMessage) ExtractBasic() (user, db, collection, op, docId string) {
+	return
 }
 
 type queryFlags struct {
