@@ -21,7 +21,6 @@ func NewQueryMessage(header *MessageHeader, b []byte) (*QueryMessage, error) {
 
 	fmt.Println("new query data: ", b)
 
-	// TODO handle errors. Be aware of fatal messages from client.
 	p := make([]byte, len(b))
 	copy(p, b)
 
@@ -40,7 +39,7 @@ func NewQueryMessage(header *MessageHeader, b []byte) (*QueryMessage, error) {
 	p = p[8:]
 
 	// read query document
-	docSize := bytes.GetInt32(p, 0)
+	docSize := bytes.GetUInt32(p, 0)
 	docBytes := p[:docSize]
 
 	var docBson bson.D
@@ -76,14 +75,14 @@ type queryFlags struct {
 
 func newQueryFlags(b []byte, pos int) queryFlags {
 	q := queryFlags{
-		Reserved:        isFlagSet(b, pos, 0),
-		TailableCursor:  isFlagSet(b, pos, 1),
-		SlaveOk:         isFlagSet(b, pos, 2),
-		OplogReplay:     isFlagSet(b, pos, 3),
-		NoCursorTimeout: isFlagSet(b, pos, 4),
-		AwaitData:       isFlagSet(b, pos, 5),
-		Exhaust:         isFlagSet(b, pos, 6),
-		Partial:         isFlagSet(b, pos, 7),
+		Reserved:        isFlagSetInt32(b, pos, 0),
+		TailableCursor:  isFlagSetInt32(b, pos, 1),
+		SlaveOk:         isFlagSetInt32(b, pos, 2),
+		OplogReplay:     isFlagSetInt32(b, pos, 3),
+		NoCursorTimeout: isFlagSetInt32(b, pos, 4),
+		AwaitData:       isFlagSetInt32(b, pos, 5),
+		Exhaust:         isFlagSetInt32(b, pos, 6),
+		Partial:         isFlagSetInt32(b, pos, 7),
 	}
 	return q
 }

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/annchain/BlockDB/backends"
-	"github.com/annchain/BlockDB/common/bytes"
 	"github.com/annchain/BlockDB/multiplexer"
 	"github.com/annchain/BlockDB/plugins/server/mongodb/message"
 	"github.com/annchain/BlockDB/processors"
@@ -87,7 +86,7 @@ func NewRequestExtractor(context multiplexer.DialogContext, writer backends.Ledg
 // Implementations must not retain p.
 func (e *RequestExtractor) Write(p []byte) (int, error) {
 
-	fmt.Println("new Write byte: ", p)
+	//fmt.Println("new Write byte: ", p)
 
 	b := make([]byte, len(p))
 	copy(b, p)
@@ -99,14 +98,14 @@ func (e *RequestExtractor) Write(p []byte) (int, error) {
 
 	// init header
 	if e.header == nil && len(e.buf) > message.HeaderLen {
-		header, err := decodeHeader(e.buf)
+		header, err := message.DecodeHeader(e.buf)
 		if err != nil {
 			return len(b), err
 		}
 		e.init(header)
 	}
 	// case that buf size no larger than header length or buf not matches msg size.
-	if e.header == nil || int32(len(e.buf)) < e.header.MessageSize {
+	if e.header == nil || uint32(len(e.buf)) < e.header.MessageSize {
 		return len(b), nil
 	}
 
@@ -116,6 +115,7 @@ func (e *RequestExtractor) Write(p []byte) (int, error) {
 	}
 
 	logEvent := &processors.LogEvent{
+		Type:      "mongodb",
 		Ip:        e.context.Source.RemoteAddr().String(),
 		Data:      msg,
 		Timestamp: int(time.Now().Unix()),
@@ -170,20 +170,6 @@ func (e *ResponseExtractor) init(header *message.MessageHeader) {
 func (e *ResponseExtractor) reset() error {
 	// TODO
 	return nil
-}
-
-func decodeHeader(b []byte) (*message.MessageHeader, error) {
-	if len(b) < message.HeaderLen {
-		return nil, fmt.Errorf("not enough length for header decoding, expect %d, get %d", message.HeaderLen, len(b))
-	}
-
-	m := &message.MessageHeader{
-		MessageSize: bytes.GetInt32(b, 0),
-		RequestID:   bytes.GetInt32(b, 4),
-		ResponseTo:  bytes.GetInt32(b, 8),
-		OpCode:      message.OpCode(bytes.GetInt32(b, 12)),
-	}
-	return m, nil
 }
 
 func extractMessage(header *message.MessageHeader, b []byte) (*message.Message, error) {

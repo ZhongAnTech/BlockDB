@@ -2,7 +2,7 @@ package message
 
 import "fmt"
 
-type OpCode int32
+type OpCode uint32
 
 const (
 	OpReply        = OpCode(1)
