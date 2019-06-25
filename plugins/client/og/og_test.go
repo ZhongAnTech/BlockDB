@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"testing"
+	"time"
 )
 
 func init() {
@@ -47,6 +48,11 @@ func TestNewOgProcessor(t *testing.T) {
 	p.Start()
 	defer p.Stop()
 	p.EnqueueSendToLedger("this is a message")
+	data := gettestData()
+	p.EnqueueSendToLedger(data)
+}
+
+func gettestData() *testData {
 	data := testData{
 		A: 45566,
 		B: "what is this ? a message ?, test message",
@@ -58,5 +64,20 @@ func TestNewOgProcessor(t *testing.T) {
 			L: "this this a string of test message",
 		},
 	}
-	p.EnqueueSendToLedger(&data)
+	return &data
+}
+
+func TestBatch(t *testing.T) {
+	logrus.SetLevel(logrus.WarnLevel)
+	data := gettestData()
+	p := NewOgProcessor(OgProcessorConfig{LedgerUrl: "http://172.28.152.101:8000//new_archive",BufferSize:100,RetryTimes:3})
+	p.Start()
+	defer p.Stop()
+	for {
+		select {
+		 case <-time.After(20*time.Microsecond):
+			 go p.EnqueueSendToLedger(data)
+		}
+
+	}
 }
