@@ -120,6 +120,8 @@ func (e *RequestExtractor) Write(p []byte) (int, error) {
 	} else {
 		msg.DBUser = e.context.User
 	}
+	// TODO hard coded user!!!
+	msg.DBUser = "admin.root"
 
 	logEvent := &processors.LogEvent{
 		Type:      "mongo",

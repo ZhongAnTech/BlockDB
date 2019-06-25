@@ -60,13 +60,22 @@ func NewMsgMessage(header *MessageHeader, b []byte) (*MsgMessage, error) {
 }
 
 func (mm *MsgMessage) ExtractBasic() (user, db, collection, op, docId string) {
-	if len(mm.Sections) <= 0 {
-		return
+
+	for _, s := range mm.Sections {
+		switch sec := s.(type) {
+		case *sectionBody:
+			user, db, op, collection = mm.extractFromBody(sec)
+		case *sectionDocumentSequence:
+			docId = mm.extractFromSeq(sec)
+		default:
+			return
+		}
 	}
-	secBody, ok := mm.Sections[0].(*sectionBody)
-	if !ok {
-		return
-	}
+	return
+}
+
+func (mm *MsgMessage) extractFromBody(secBody *sectionBody) (user, db, op, collection string) {
+
 	doc := secBody.Document.Map()
 	// user
 	if v, ok := doc["saslSupportedMechs"]; ok {
@@ -90,16 +99,36 @@ func (mm *MsgMessage) ExtractBasic() (user, db, collection, op, docId string) {
 		op = "delete"
 		collection = v.(string)
 	}
-	// doc id
 
-	//if len(mm.Sections) <= 1 {
-	//	return
-	//}
-	//secSeq, ok := mm.Sections[1].(*sectionDocumentSequence)
-	//if !ok {
-	//	return
-	//}
-	//
+	return
+}
+
+func (mm *MsgMessage) extractFromSeq(secSeq *sectionDocumentSequence) (docId string) {
+
+	docs := secSeq.Documents
+	if len(docs) < 1 {
+		return
+	}
+	// TODO optimise these ugly code!!!
+	for _, docBson := range docs {
+		doc := docBson.Map()
+		if v, ok := doc["_id"]; ok {
+			vbmIdObj := v.(bson.ObjectId)
+			docId = vbmIdObj.Hex()
+			return
+		}
+		if v, ok := doc["q"]; ok {
+			if vb, ok := v.(bson.D); ok {
+				vbm := vb.Map()
+				if vbmId, ok := vbm["_id"]; ok {
+					vbmIdObj := vbmId.(bson.ObjectId)
+					docId = vbmIdObj.Hex()
+					return
+				}
+			}
+		}
+
+	}
 	return
 }
 

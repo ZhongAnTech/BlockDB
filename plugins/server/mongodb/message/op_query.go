@@ -63,6 +63,7 @@ func NewQueryMessage(header *MessageHeader, b []byte) (*QueryMessage, error) {
 }
 
 func (qm *QueryMessage) ExtractBasic() (user, db, collection, op, docId string) {
+
 	return
 }
 
