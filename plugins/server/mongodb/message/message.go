@@ -132,8 +132,6 @@ func init() {
 		FlagIntSet[i] = int32(i32)
 	}
 
-	fmt.Println("flag uint set: ", FlagUIntSet)
-	fmt.Println("flag int set: ", FlagIntSet)
 }
 
 var FlagUIntSet [32]uint32

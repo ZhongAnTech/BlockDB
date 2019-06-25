@@ -120,7 +120,6 @@ func (e *RequestExtractor) Write(p []byte) (int, error) {
 		Data:      msg,
 		Timestamp: int(time.Now().Unix()),
 		Identity:  msg.DBUser,
-		Type:      "mongo",
 	}
 
 	//data, _ := json.Marshal(logEvent)
