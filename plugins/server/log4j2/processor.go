@@ -53,7 +53,6 @@ func (m *Log4j2SocketProcessor) ProcessConnection(conn net.Conn) error {
 		}
 		str = str[:len(str)-1]
 		// query command
-		//fmt.Println(str)
 		//fmt.Println(hex.Dump(bytes))
 		event := m.ParseCommand([]byte(str))
 		if event == nil {
@@ -82,6 +81,12 @@ func (m *Log4j2SocketProcessor) ParseCommand(bytes []byte) *processors.LogEvent 
 	}
 	cmap := log4j.ContextMap
 	cmap["message"] = log4j.Message
+	cmap["level"] = log4j.Level
+	cmap["logger"] = log4j.LoggerName
+	identity := "N/A"
+	if v, ok := cmap["id"]; ok {
+		identity = v.(string)
+	}
 
 	data, err := json.Marshal(cmap)
 	if err != nil {
@@ -93,6 +98,7 @@ func (m *Log4j2SocketProcessor) ParseCommand(bytes []byte) *processors.LogEvent 
 		Timestamp: log4j.Instant.Timestamp,
 		Data:      string(data),
 		Type:      "log4j",
+		Identity:  identity,
 	}
 	return &event
 

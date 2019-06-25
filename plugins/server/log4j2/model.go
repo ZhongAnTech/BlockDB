@@ -5,6 +5,7 @@ type Log4j2SocketEventInstant struct {
 }
 
 type Log4j2SocketEvent struct {
+	Level      string                   `json:"level"`
 	LoggerName string                   `json:"loggerName"`
 	Message    string                   `json:"message"`
 	Instant    Log4j2SocketEventInstant `json:"instant"`
