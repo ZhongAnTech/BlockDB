@@ -1,7 +1,6 @@
 package message
 
 import (
-	"fmt"
 	"github.com/annchain/BlockDB/processors"
 )
 
@@ -13,7 +12,7 @@ type ReservedMessage struct {
 
 func NewReservedMessage(header *MessageHeader, b []byte) (*ReservedMessage, error) {
 
-	fmt.Println("new reserved data: ", b)
+	//fmt.Println("new reserved data: ", b)
 
 	return nil, nil
 }

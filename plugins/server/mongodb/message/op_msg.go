@@ -2,6 +2,7 @@ package message
 
 import (
 	"fmt"
+
 	"github.com/annchain/BlockDB/common/bytes"
 	"github.com/globalsign/mgo/bson"
 )
@@ -15,7 +16,7 @@ type MsgMessage struct {
 
 func NewMsgMessage(header *MessageHeader, b []byte) (*MsgMessage, error) {
 
-	fmt.Println(fmt.Sprintf("new msg data: %x", b))
+	// fmt.Println(fmt.Sprintf("new msg data: %x", b))
 
 	p := make([]byte, len(b))
 	copy(p, b)

@@ -1,15 +1,15 @@
 package mongodb
 
 import (
-	"encoding/json"
 	"fmt"
+	"io"
+	"sync"
+	"time"
+
 	"github.com/annchain/BlockDB/backends"
 	"github.com/annchain/BlockDB/multiplexer"
 	"github.com/annchain/BlockDB/plugins/server/mongodb/message"
 	"github.com/annchain/BlockDB/processors"
-	"io"
-	"sync"
-	"time"
 )
 
 type ExtractorFactory struct {
@@ -120,12 +120,13 @@ func (e *RequestExtractor) Write(p []byte) (int, error) {
 		Data:      msg,
 		Timestamp: int(time.Now().Unix()),
 		Identity:  msg.DBUser,
+		Type:      "mongo",
 	}
 
-	data, _ := json.Marshal(logEvent)
-	fmt.Println("log event: ", string(data))
+	//data, _ := json.Marshal(logEvent)
+	//fmt.Println("log event: ", string(data))
 
-	e.writer.SendToLedger(logEvent)
+	e.writer.EnqueueSendToLedger(logEvent)
 	e.reset()
 
 	return len(b), nil

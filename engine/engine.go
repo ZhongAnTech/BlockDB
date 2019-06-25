@@ -51,7 +51,9 @@ func (n *Engine) registerComponents() {
 	if viper.GetBool("og.enabled") {
 		url := viper.GetString("og.url")
 		p := og.NewOgProcessor(og.OgProcessorConfig{LedgerUrl: url,
-			IdleConnectionTimeout: time.Second * time.Duration(viper.GetInt("listener.og.idle_connection_seconds")),
+			IdleConnectionTimeout: time.Second * time.Duration(viper.GetInt("og.idle_connection_seconds")),
+			BufferSize:            viper.GetInt("og.buffer_size"),
+			RetryTimes:            viper.GetInt("og.retry_times"),
 		})
 		defaultLedgerWriter = p
 		n.components = append(n.components, p)

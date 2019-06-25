@@ -19,7 +19,7 @@ type QueryMessage struct {
 
 func NewQueryMessage(header *MessageHeader, b []byte) (*QueryMessage, error) {
 
-	fmt.Println("new query data: ", b)
+	//fmt.Println("new query data: ", b)
 
 	p := make([]byte, len(b))
 	copy(p, b)

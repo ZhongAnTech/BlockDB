@@ -19,3 +19,6 @@
 [og]
 enabled = true
 url="http://172.28.152.101:8000/new_archive"
+idle_connection_seconds = 5
+buffer_size = 100
+retry_times = 3

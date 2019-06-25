@@ -1,7 +1,6 @@
 package message
 
 import (
-	"fmt"
 	"github.com/annchain/BlockDB/processors"
 )
 
@@ -13,7 +12,7 @@ type DeleteMessage struct {
 
 func NewDeleteMessage(header *MessageHeader, b []byte) (*DeleteMessage, error) {
 
-	fmt.Println("new delete data: ", b)
+	//fmt.Println("new delete data: ", b)
 	return nil, nil
 }
 
