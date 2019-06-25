@@ -122,7 +122,7 @@ func (e *RequestExtractor) Write(p []byte) (int, error) {
 	}
 
 	logEvent := &processors.LogEvent{
-		Type:      "mongodb",
+		Type:      "mongo",
 		Ip:        e.context.Source.RemoteAddr().String(),
 		Data:      msg,
 		Timestamp: int(time.Now().Unix()),
