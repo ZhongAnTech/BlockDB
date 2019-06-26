@@ -5,7 +5,7 @@ type LogEvent struct {
 	Type       string      `json:"type"`
 	Ip         string      `json:"ip"`
 	PrimaryKey string      `json:"primary_key"`
-	Timestamp  int         `json:"timestamp"`
+	Timestamp  int64       `json:"timestamp"`
 	Data       interface{} `json:"data"`
 	Before     string      `json:"before"`
 	After      string      `json:"after"`

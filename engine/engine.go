@@ -5,6 +5,7 @@ import (
 	"github.com/annchain/BlockDB/listener"
 	"github.com/annchain/BlockDB/multiplexer"
 	"github.com/annchain/BlockDB/plugins/client/og"
+	"github.com/annchain/BlockDB/plugins/server/jsonSocket"
 	"github.com/annchain/BlockDB/plugins/server/log4j2"
 	"github.com/annchain/BlockDB/plugins/server/mongodb"
 	"github.com/sirupsen/logrus"
@@ -84,6 +85,19 @@ func (n *Engine) registerComponents() {
 		)
 		l := listener.NewGeneralTCPListener(p, viper.GetInt("listener.log4j2Socket.incoming_port"),
 			viper.GetInt("listener.log4j2Socket.incoming_max_connection"))
+		n.components = append(n.components, l)
+	}
+
+	if viper.GetBool("listener.jsonSocket.enabled") {
+		// Incoming connection handler
+		p := jsonSocket.NewJsonSocketProcessor(
+			jsonSocket.JsonSocketProcessorConfig{
+				IdleConnectionTimeout: time.Second * time.Duration(viper.GetInt("listener.jsonSocket.idle_connection_seconds")),
+			},
+			defaultLedgerWriter,
+		)
+		l := listener.NewGeneralTCPListener(p, viper.GetInt("listener.jsonSocket.incoming_port"),
+			viper.GetInt("listener.jsonSocket.incoming_max_connection"))
 		n.components = append(n.components, l)
 	}
 

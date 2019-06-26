@@ -1,7 +1,7 @@
 package log4j2
 
 type Log4j2SocketEventInstant struct {
-	Timestamp int `json:"epochSecond"`
+	Timestamp int64 `json:"epochSecond"`
 }
 
 type Log4j2SocketEvent struct {
