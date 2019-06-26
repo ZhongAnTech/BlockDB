@@ -4,6 +4,7 @@
     incoming_port = 28017
     incoming_max_connection = 10
     idle_connection_seconds = 30
+    ignore_meta_query = true
 
     [listener.log4j2Socket]
     enabled = true

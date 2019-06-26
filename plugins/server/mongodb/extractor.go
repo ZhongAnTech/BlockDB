@@ -1,8 +1,12 @@
 package mongodb
 
 import (
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"io"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,24 +18,32 @@ import (
 
 type ExtractorFactory struct {
 	ledgerWriter backends.LedgerWriter
+	config       *ExtractorConfig
 }
 
-func NewExtractorFactory(writer backends.LedgerWriter) *ExtractorFactory {
+type ExtractorConfig struct {
+	IgnoreMetaQuery bool
+}
+
+func NewExtractorFactory(writer backends.LedgerWriter, config *ExtractorConfig) *ExtractorFactory {
 	return &ExtractorFactory{
 		ledgerWriter: writer,
+		config:       config,
 	}
 }
 
 func (e ExtractorFactory) GetInstance(context multiplexer.DialogContext) multiplexer.Observer {
 	return &Extractor{
-		req:  NewRequestExtractor(context, e.ledgerWriter),
-		resp: NewResponseExtractor(context, e.ledgerWriter),
+		req:    NewRequestExtractor(context, e.ledgerWriter, e.config),
+		resp:   NewResponseExtractor(context, e.ledgerWriter),
+		config: e.config,
 	}
 }
 
 type Extractor struct {
-	req  ExtractorInterface
-	resp ExtractorInterface
+	req    ExtractorInterface
+	resp   ExtractorInterface
+	config *ExtractorConfig
 }
 
 func (e *Extractor) GetIncomingWriter() io.Writer {
@@ -62,12 +74,15 @@ type RequestExtractor struct {
 	extract func(h *message.MessageHeader, b []byte) (*message.Message, error)
 
 	writer backends.LedgerWriter
+	config *ExtractorConfig
 
 	mu sync.RWMutex
 }
 
-func NewRequestExtractor(context multiplexer.DialogContext, writer backends.LedgerWriter) *RequestExtractor {
-	r := &RequestExtractor{}
+func NewRequestExtractor(context multiplexer.DialogContext, writer backends.LedgerWriter, config *ExtractorConfig) *RequestExtractor {
+	r := &RequestExtractor{
+		config: config,
+	}
 
 	r.buf = make([]byte, 0)
 	r.extract = extractMessage
@@ -86,7 +101,7 @@ func NewRequestExtractor(context multiplexer.DialogContext, writer backends.Ledg
 // Implementations must not retain p.
 func (e *RequestExtractor) Write(p []byte) (int, error) {
 
-	//fmt.Println("new Write byte: ", p)
+	fmt.Println("new Write byte: ", hex.Dump(p))
 
 	b := make([]byte, len(p))
 	copy(b, p)
@@ -133,8 +148,27 @@ func (e *RequestExtractor) Write(p []byte) (int, error) {
 
 	//data, _ := json.Marshal(logEvent)
 	//fmt.Println("log event: ", string(data))
-
-	e.writer.EnqueueSendToLedger(logEvent)
+	write := true
+	if e.config.IgnoreMetaQuery {
+		s := string(p)
+		blacklist := []string{"buildinfo", "getlasterror", "architecture", "dbStats", "saslStart", "saslContinue", "listCollections", "collStats"}
+		if msg.DB == "admin" {
+			write = false
+		} else {
+			// check blacklist
+			for _, word := range blacklist {
+				if strings.Contains(s, word) {
+					write = false
+					break
+				}
+			}
+		}
+	}
+	if write {
+		t, _ := json.Marshal(msg)
+		logrus.WithField("ev", string(t)).Warn("log")
+		e.writer.EnqueueSendToLedger(logEvent)
+	}
 	e.reset()
 
 	return len(b), nil
