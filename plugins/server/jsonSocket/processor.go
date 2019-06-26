@@ -74,10 +74,15 @@ func (m *JsonSocketProcessor) ParseCommand(bytes []byte) *processors.LogEvent {
 		return nil
 	}
 	primaryKey, _ := c.(map[string]interface{})["id"]
+	logger, _ := c.(map[string]interface{})["logger"]
+	if logger == nil || logger == "" {
+		logger = "json"
+	}
+
 	event := processors.LogEvent{
 		Timestamp:  time.Now().Unix(),
 		Data:       c,
-		Type:       "json",
+		Type:       fmt.Sprint(logger),
 		PrimaryKey: fmt.Sprint(primaryKey),
 	}
 	return &event
