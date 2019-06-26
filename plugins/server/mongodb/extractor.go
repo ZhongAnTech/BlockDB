@@ -1,7 +1,6 @@
 package mongodb
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"sync"
@@ -124,15 +123,16 @@ func (e *RequestExtractor) Write(p []byte) (int, error) {
 	msg.DBUser = "admin.root"
 
 	logEvent := &processors.LogEvent{
-		Type:      "mongo",
-		Ip:        e.context.Source.RemoteAddr().String(),
-		Data:      msg,
-		Timestamp: int(time.Now().Unix()),
-		Identity:  msg.DBUser,
+		Type:       "mongo",
+		Ip:         e.context.Source.RemoteAddr().String(),
+		Data:       msg,
+		PrimaryKey: msg.DocID,
+		Timestamp:  int(time.Now().Unix()),
+		Identity:   msg.DBUser,
 	}
 
-	data, _ := json.Marshal(logEvent)
-	fmt.Println("log event: ", string(data))
+	//data, _ := json.Marshal(logEvent)
+	//fmt.Println("log event: ", string(data))
 
 	e.writer.EnqueueSendToLedger(logEvent)
 	e.reset()
