@@ -61,7 +61,6 @@ func (n *Engine) registerComponents() {
 
 	// MongoDB incoming
 	if viper.GetBool("listener.mongodb.enabled") {
-		// TODO move mongo url to config
 		url := viper.GetString("backend.mongodb.url")
 		if url != "" {
 			builder := multiplexer.NewDefaultTCPConnectionBuilder(url)

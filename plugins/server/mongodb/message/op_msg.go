@@ -109,27 +109,40 @@ func (mm *MsgMessage) extractFromSeq(secSeq *sectionDocumentSequence) (docId str
 	if len(docs) < 1 {
 		return
 	}
-	// TODO optimise these ugly code!!!
+
+	var idI interface{}
+	var ok bool
 	for _, docBson := range docs {
 		doc := docBson.Map()
-		if v, ok := doc["_id"]; ok {
-			vbmIdObj := v.(bson.ObjectId)
-			docId = vbmIdObj.Hex()
-			return
+		if idI, ok = doc["_id"]; ok {
+			break
 		}
-		if v, ok := doc["q"]; ok {
-			if vb, ok := v.(bson.D); ok {
-				vbm := vb.Map()
-				if vbmId, ok := vbm["_id"]; ok {
-					vbmIdObj := vbmId.(bson.ObjectId)
-					docId = vbmIdObj.Hex()
-					return
-				}
-			}
+		v, ok := doc["q"]
+		if !ok {
+			continue
 		}
-
+		vb, ok := v.(bson.D)
+		if !ok {
+			continue
+		}
+		if idI, ok = (vb.Map())["_id"]; ok {
+			break
+		}
 	}
-	return
+	if idI == nil {
+		return
+	}
+
+	switch id := idI.(type) {
+	case bson.ObjectId:
+		return id.Hex()
+	case string:
+		return id
+	case int:
+		return string(id)
+	default:
+		return ""
+	}
 }
 
 type msgFlags struct {
