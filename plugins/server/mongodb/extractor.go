@@ -127,7 +127,7 @@ func (e *RequestExtractor) Write(p []byte) (int, error) {
 		Ip:         e.context.Source.RemoteAddr().String(),
 		Data:       msg,
 		PrimaryKey: msg.DocID,
-		Timestamp:  int(time.Now().Unix()),
+		Timestamp:  int64(time.Now().Unix()),
 		Identity:   msg.DBUser,
 	}
 
