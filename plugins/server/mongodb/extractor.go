@@ -1,7 +1,6 @@
 package mongodb
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/sirupsen/logrus"
@@ -101,7 +100,7 @@ func NewRequestExtractor(context multiplexer.DialogContext, writer backends.Ledg
 // Implementations must not retain p.
 func (e *RequestExtractor) Write(p []byte) (int, error) {
 
-	fmt.Println("new Write byte: ", hex.Dump(p))
+	//fmt.Println("new Write byte: ", hex.Dump(p))
 
 	b := make([]byte, len(p))
 	copy(b, p)

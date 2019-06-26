@@ -54,7 +54,7 @@ func (m *JsonSocketProcessor) ProcessConnection(conn net.Conn) error {
 		}
 		str = str[:len(str)-1]
 		// query command
-		fmt.Println(str)
+		//fmt.Println(str)
 		//fmt.Println(hex.Dump(bytes))
 		event := m.ParseCommand([]byte(str))
 		if event == nil {
