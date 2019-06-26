@@ -15,6 +15,7 @@
     [backend.mongodb]
     # see http://mongodb.github.io/mongo-java-driver/3.6/javadoc/?com/mongodb/ConnectionString.html for full connection parameters
     connection_string = "mongodb://[username:password@]host1[:port1][,host2[:port2],...[,hostN[:portN]]][/[database.collection][?options]]"
+    url = "172.28.152.101:27017"
 
 [og]
 enabled = true

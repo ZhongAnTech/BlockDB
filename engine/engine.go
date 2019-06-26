@@ -62,13 +62,17 @@ func (n *Engine) registerComponents() {
 	// MongoDB incoming
 	if viper.GetBool("listener.mongodb.enabled") {
 		// TODO move mongo url to config
-		builder := multiplexer.NewDefaultTCPConnectionBuilder("172.28.152.101:27017")
-		observerFactory := mongodb.NewExtractorFactory(defaultLedgerWriter)
-		mp := multiplexer.NewMultiplexer(builder, observerFactory)
-		l := listener.NewGeneralTCPListener(mp, viper.GetInt("listener.mongodb.incoming_port"),
-			viper.GetInt("listener.mongodb.incoming_max_connection"))
+		url := viper.GetString("backend.mongodb.url")
+		if url != "" {
+			builder := multiplexer.NewDefaultTCPConnectionBuilder(url)
+			observerFactory := mongodb.NewExtractorFactory(defaultLedgerWriter)
+			mp := multiplexer.NewMultiplexer(builder, observerFactory)
+			l := listener.NewGeneralTCPListener(mp, viper.GetInt("listener.mongodb.incoming_port"),
+				viper.GetInt("listener.mongodb.incoming_max_connection"))
 
-		n.components = append(n.components, l)
+			n.components = append(n.components, l)
+		}
+
 	}
 
 	if viper.GetBool("listener.log4j2Socket.enabled") {
