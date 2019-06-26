@@ -73,10 +73,12 @@ func (m *JsonSocketProcessor) ParseCommand(bytes []byte) *processors.LogEvent {
 		logrus.WithError(err).Warn("bad format")
 		return nil
 	}
+	primaryKey, _ := c.(map[string]interface{})["id"]
 	event := processors.LogEvent{
-		Timestamp: time.Now().Unix(),
-		Data:      c,
-		Type:      "json",
+		Timestamp:  time.Now().Unix(),
+		Data:       c,
+		Type:       "json",
+		PrimaryKey: fmt.Sprint(primaryKey),
 	}
 	return &event
 
