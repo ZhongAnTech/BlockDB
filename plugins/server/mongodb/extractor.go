@@ -23,22 +23,22 @@ func NewExtractorFactory(writer backends.LedgerWriter) *ExtractorFactory {
 }
 
 func (e ExtractorFactory) GetInstance(context multiplexer.DialogContext) multiplexer.Observer {
-	return &Extractor{
-		req:  NewRequestExtractor(context, e.ledgerWriter),
-		resp: NewResponseExtractor(context, e.ledgerWriter),
+	return &ExtractorObserver{
+		req:  NewExtractor(context, e.ledgerWriter),
+		resp: NewExtractor(context, e.ledgerWriter),
 	}
 }
 
-type Extractor struct {
+type ExtractorObserver struct {
 	req  ExtractorInterface
 	resp ExtractorInterface
 }
 
-func (e *Extractor) GetIncomingWriter() io.Writer {
+func (e *ExtractorObserver) GetIncomingWriter() io.Writer {
 	return e.req
 }
 
-func (e *Extractor) GetOutgoingWriter() io.Writer {
+func (e *ExtractorObserver) GetOutgoingWriter() io.Writer {
 	return e.resp
 }
 
@@ -54,7 +54,7 @@ type ExtractorInterface interface {
 	reset() error
 }
 
-type RequestExtractor struct {
+type Extractor struct {
 	context multiplexer.DialogContext
 	header  *message.MessageHeader
 	buf     []byte
@@ -66,8 +66,8 @@ type RequestExtractor struct {
 	mu sync.RWMutex
 }
 
-func NewRequestExtractor(context multiplexer.DialogContext, writer backends.LedgerWriter) *RequestExtractor {
-	r := &RequestExtractor{}
+func NewExtractor(context multiplexer.DialogContext, writer backends.LedgerWriter) *Extractor {
+	r := &Extractor{}
 
 	r.buf = make([]byte, 0)
 	r.extract = extractMessage
@@ -77,14 +77,7 @@ func NewRequestExtractor(context multiplexer.DialogContext, writer backends.Ledg
 	return r
 }
 
-// Write writes len(p) bytes from p to the underlying data stream.
-// It returns the number of bytes written from p (0 <= n <= len(p))
-// and any error encountered that caused the write to stop early.
-// Write must return a non-nil error if it returns n < len(p).
-// Write must not modify the slice data, even temporarily.
-//
-// Implementations must not retain p.
-func (e *RequestExtractor) Write(p []byte) (int, error) {
+func (e *Extractor) Write(p []byte) (int, error) {
 
 	//fmt.Println("new Write byte: ", p)
 
@@ -119,8 +112,6 @@ func (e *RequestExtractor) Write(p []byte) (int, error) {
 	} else {
 		msg.DBUser = e.context.User
 	}
-	// TODO hard coded user!!!
-	msg.DBUser = "admin.root"
 
 	logEvent := &processors.LogEvent{
 		Type:       "mongo",
@@ -140,11 +131,11 @@ func (e *RequestExtractor) Write(p []byte) (int, error) {
 	return len(b), nil
 }
 
-func (e *RequestExtractor) init(header *message.MessageHeader) {
+func (e *Extractor) init(header *message.MessageHeader) {
 	e.header = header
 }
 
-func (e *RequestExtractor) reset() error {
+func (e *Extractor) reset() error {
 	if e.header == nil {
 		e.buf = make([]byte, 0)
 		return nil
@@ -154,79 +145,51 @@ func (e *RequestExtractor) reset() error {
 	return nil
 }
 
-type ResponseExtractor struct {
-	context multiplexer.DialogContext
-	writer  backends.LedgerWriter
-}
-
-func NewResponseExtractor(context multiplexer.DialogContext, writer backends.LedgerWriter) *ResponseExtractor {
-	return &ResponseExtractor{
-		context: context,
-		writer:  writer,
-	}
-}
-
-func (e *ResponseExtractor) Write(p []byte) (int, error) {
-	// TODO
-	return len(p), nil
-}
-
-func (e *ResponseExtractor) init(header *message.MessageHeader) {
-	// TODO
-
-}
-
-func (e *ResponseExtractor) reset() error {
-	// TODO
-	return nil
-}
-
 func extractMessage(header *message.MessageHeader, b []byte) (*message.Message, error) {
 	if len(b) != int(header.MessageSize) {
 		return nil, fmt.Errorf("msg bytes length not equal to size in header. "+
-			"Bytes length: %d, header size: %d", len(b), header.MessageSize)
+			"Bytes length: %d, size in header: %d", len(b), header.MessageSize)
 	}
 
 	var err error
 	var mm message.MongoMessage
 	switch header.OpCode {
 	case message.OpReply:
-		fmt.Println("Extraction for OpReply not implemented")
-		//mm, err = message.NewReplyMessage(header, b)
+		mm, err = message.NewReplyMessage(header, b)
 		break
 	case message.OpUpdate:
-		fmt.Println("Extraction for OpUpdate not implemented")
+		err = fmt.Errorf("Extraction for OpUpdate not implemented")
 		//mm, err = message.NewUpdateMessage(header, b)
 		break
 	case message.OpInsert:
-		fmt.Println("Extraction for OpInsert not implemented")
+		err = fmt.Errorf("Extraction for OpInsert not implemented")
 		//mm, err = message.NewInsertMessage(header, b)
 		break
 	case message.Reserved:
-		fmt.Println("Extraction for Reserved not implemented")
+		err = fmt.Errorf("Extraction for Reserved not implemented")
 		//mm, err = message.NewReservedMessage(header, b)
 		break
 	case message.OpQuery:
 		mm, err = message.NewQueryMessage(header, b)
 		break
 	case message.OpGetMore:
-		fmt.Println("Extraction for OpGetMore not implemented")
+		err = fmt.Errorf("Extraction for OpGetMore not implemented")
 		//mm, err = message.NewGetMoreMessage(header, b)
 		break
 	case message.OpDelete:
-		fmt.Println("Extraction for OpDelete not implemented")
+		err = fmt.Errorf("Extraction for OpDelete not implemented")
 		//mm, err = message.NewDeleteMessage(header, b)
 		break
 	case message.OpKillCursors:
-		fmt.Println("Extraction for OpKillCursors not implemented")
+		err = fmt.Errorf("Extraction for OpKillCursors not implemented")
 		//mm, err = message.NewKillCursorsMessage(header, b)
 		break
 	case message.OpCommand:
-		fmt.Println("Extraction for OpCommand not implemented")
+		err = fmt.Errorf("Extraction for OpCommand not implemented")
 		//mm, err = message.NewCommandMessage(header, b)
 		break
 	case message.OpCommandReply:
-		fmt.Println("Extraction for OpCommandReply not implemented")
+		err = fmt.Errorf("Extraction for OpCommandReply not implemented")
 		//mm, err = message.NewCommandReplyMessage(header, b)
 		break
 	case message.OpMsg:

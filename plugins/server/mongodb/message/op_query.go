@@ -7,14 +7,13 @@ import (
 )
 
 type QueryMessage struct {
-	Header *MessageHeader
-
-	Flags  queryFlags `json:"flags"`
-	coll   string     `json:"collection"`
-	Skip   int32      `json:"skip"`
-	Limit  int32      `json:"limit"`
-	Query  bson.D     `json:"query"`
-	Fields string     `json:"fields"`
+	Header *MessageHeader `json:"header"`
+	Flags  queryFlags     `json:"flags"`
+	Coll   string         `json:"collection"`
+	Skip   int32          `json:"skip"`
+	Limit  int32          `json:"limit"`
+	Query  bson.M         `json:"query"`
+	Fields bson.M         `json:"fields"`
 }
 
 func NewQueryMessage(header *MessageHeader, b []byte) (*QueryMessage, error) {
@@ -39,30 +38,43 @@ func NewQueryMessage(header *MessageHeader, b []byte) (*QueryMessage, error) {
 	p = p[8:]
 
 	// read query document
-	docSize := bytes.GetUInt32(p, 0)
-	docBytes := p[:docSize]
+	querySize := bytes.GetUInt32(p, 0)
+	queryBytes := p[:querySize]
 
-	var docBson bson.D
-	err := bson.Unmarshal(docBytes, &docBson)
+	var queryBson bson.D
+	err := bson.Unmarshal(queryBytes, &queryBson)
 	if err != nil {
 		return nil, fmt.Errorf("read query document error, cannot unmarshal it to bson, err: %v", err)
 	}
+	p = p[querySize:]
 
 	// read fields
-	// TODO fields needed.
+	var fieldsBson bson.D
+	if len(p) > 0 {
+		fieldsSize := bytes.GetUInt32(p, 0)
+		fieldsBytes := p[:fieldsSize]
+		err = bson.Unmarshal(fieldsBytes, &fieldsBson)
+		if err != nil {
+			return nil, fmt.Errorf("read fields document error, cannot unmarshal it to bson, err: %v", err)
+		}
+	}
 
 	qm := &QueryMessage{}
 	qm.Header = header
 	qm.Flags = flags
-	qm.coll = coll
+	qm.Coll = coll
 	qm.Skip = skip
 	qm.Limit = limit
-	qm.Query = docBson
+	qm.Query = queryBson.Map()
+	if fieldsBson != nil {
+		qm.Fields = fieldsBson.Map()
+	}
 
 	return qm, nil
 }
 
 func (qm *QueryMessage) ExtractBasic() (user, db, collection, op, docId string) {
+	// TODO
 
 	return
 }

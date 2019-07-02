@@ -1,23 +1,83 @@
 package message
 
 import (
-	"github.com/annchain/BlockDB/processors"
+	"fmt"
+	"github.com/annchain/BlockDB/common/bytes"
+	"github.com/globalsign/mgo/bson"
 )
 
 type ReplyMessage struct {
-	header *MessageHeader
-
-	// TODO body not implemented
+	Header    *MessageHeader `json:"header"`
+	Flags     replyFlags     `json:"flags"`
+	CursorID  int64          `json:"cursor_id"`
+	StartFrom int32          `json:"start_from"`
+	Number    int32          `json:"number"`
+	Documents []bson.M       `json:"documents"`
 }
 
 func NewReplyMessage(header *MessageHeader, b []byte) (*ReplyMessage, error) {
 
 	//fmt.Println("new reply data: ", b)
 
-	return nil, nil
+	p := make([]byte, len(b))
+	copy(p, b)
+
+	pos := HeaderLen
+
+	// read flags
+	flags := newReplyFlags(p, pos)
+	pos += 4
+	// read cursor id
+	cursorID := bytes.GetInt64(p, pos)
+	pos += 8
+	// read start_from
+	startFrom := bytes.GetInt32(p, pos)
+	pos += 4
+	// read number returned
+	number := bytes.GetInt32(p, pos)
+	pos += 4
+
+	// read documents
+	var docs []bson.M
+	bytesLeft := int(header.MessageSize) - pos
+	for bytesLeft > 0 {
+		doc, docSize, err := readDocument(b, pos)
+		if err != nil {
+			return nil, fmt.Errorf("read doc error: %v", err)
+		}
+		docs = append(docs, doc.Map())
+		bytesLeft -= docSize
+	}
+
+	rm := &ReplyMessage{}
+	rm.Header = header
+	rm.Flags = flags
+	rm.CursorID = cursorID
+	rm.StartFrom = startFrom
+	rm.Number = number
+	rm.Documents = docs
+
+	return rm, nil
 }
 
-func (m *ReplyMessage) ParseCommand() []*processors.LogEvent {
+func (rm *ReplyMessage) ExtractBasic() (user, db, collection, op, docId string) {
+	// TODO
 
-	return nil
+	return
+}
+
+type replyFlags struct {
+	CursorNotFound   bool `json:"cursor_not_found"`
+	QueryFailure     bool `json:"query_failure"`
+	ShardConfigStale bool `json:"shard_config_stale"`
+	AwaitCapable     bool `json:"await_capable"`
+}
+
+func newReplyFlags(b []byte, pos int) replyFlags {
+	return replyFlags{
+		CursorNotFound:   isFlagSetInt32(b, pos, 0),
+		QueryFailure:     isFlagSetInt32(b, pos, 1),
+		ShardConfigStale: isFlagSetInt32(b, pos, 2),
+		AwaitCapable:     isFlagSetInt32(b, pos, 3),
+	}
 }

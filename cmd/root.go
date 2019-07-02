@@ -207,7 +207,7 @@ func initLogger() {
 		//filenameHook.Field = "line"
 		//logrus.AddHook(filenameHook)
 		//logrus supports line caller now
-		//logrus.SetReportCaller(true)
+		logrus.SetReportCaller(true)
 	}
 	byLevel := viper.GetBool("multifile_by_level")
 	if byLevel && logdir != "" {

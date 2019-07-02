@@ -16,8 +16,6 @@ type MsgMessage struct {
 
 func NewMsgMessage(header *MessageHeader, b []byte) (*MsgMessage, error) {
 
-	// fmt.Println(fmt.Sprintf("new msg data: %x", b))
-
 	p := make([]byte, len(b))
 	copy(p, b)
 
@@ -76,7 +74,7 @@ func (mm *MsgMessage) ExtractBasic() (user, db, collection, op, docId string) {
 
 func (mm *MsgMessage) extractFromBody(secBody *sectionBody) (user, db, op, collection string) {
 
-	doc := secBody.Document.Map()
+	doc := secBody.Document
 	// user
 	if v, ok := doc["saslSupportedMechs"]; ok {
 		user = v.(string)
@@ -112,8 +110,7 @@ func (mm *MsgMessage) extractFromSeq(secSeq *sectionDocumentSequence) (docId str
 
 	var idI interface{}
 	var ok bool
-	for _, docBson := range docs {
-		doc := docBson.Map()
+	for _, doc := range docs {
 		if idI, ok = doc["_id"]; ok {
 			break
 		}
@@ -181,7 +178,7 @@ func newSection(b []byte, pos int) (section, int, error) {
 		}
 		s := &sectionBody{
 			PayloadType: singleDocument,
-			Document:    doc,
+			Document:    doc.Map(),
 		}
 		return s, 1 + int(size), nil
 
@@ -204,14 +201,14 @@ func newSection(b []byte, pos int) (section, int, error) {
 		pos += idSize
 
 		// read documents
-		var docs []bson.D
+		var docs []bson.M
 		bytesLeft := int(size) - 4 - idSize
 		for bytesLeft > 0 {
 			doc, docSize, err := readDocument(b, pos)
 			if err != nil {
 				return nil, 0, fmt.Errorf("read doc error: %v", err)
 			}
-			docs = append(docs, doc)
+			docs = append(docs, doc.Map())
 			bytesLeft -= docSize
 		}
 
@@ -231,7 +228,7 @@ func newSection(b []byte, pos int) (section, int, error) {
 
 type sectionBody struct {
 	PayloadType sectionType `json:"type"`
-	Document    bson.D      `json:"document"`
+	Document    bson.M      `json:"document"`
 }
 
 func (s *sectionBody) kind() sectionType {
@@ -242,7 +239,7 @@ type sectionDocumentSequence struct {
 	PayloadType sectionType `json:"type"`
 	Size        uint32      `json:"size"`
 	Identifier  string      `json:"identifier"`
-	Documents   []bson.D    `json:"documents"`
+	Documents   []bson.M    `json:"documents"`
 }
 
 func (s *sectionDocumentSequence) kind() sectionType {

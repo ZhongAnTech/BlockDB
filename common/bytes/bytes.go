@@ -26,3 +26,9 @@ func SetInt32(b []byte, pos int, i int32) {
 	b[pos+2] = byte(i >> 16)
 	b[pos+3] = byte(i >> 24)
 }
+
+// GetInt64 get an int64 from byte array with a start position.
+func GetInt64(b []byte, pos int) int64 {
+	return int64(b[pos]) | int64(b[pos+1])<<8 | int64(b[pos+2])<<16 | int64(b[pos+3])<<24 |
+		int64(b[pos+4])<<32 | int64(b[pos+5])<<40 | int64(b[pos+6])<<48 | int64(b[pos+7])<<56
+}
