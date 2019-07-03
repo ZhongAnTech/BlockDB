@@ -54,7 +54,7 @@ func (m *JsonSocketProcessor) ProcessConnection(conn net.Conn) error {
 		}
 		str = str[:len(str)-1]
 		// query command
-		fmt.Println(str)
+		//fmt.Println(str)
 		//fmt.Println(hex.Dump(bytes))
 		event := m.ParseCommand([]byte(str))
 		if event == nil {
@@ -73,10 +73,17 @@ func (m *JsonSocketProcessor) ParseCommand(bytes []byte) *processors.LogEvent {
 		logrus.WithError(err).Warn("bad format")
 		return nil
 	}
+	primaryKey, _ := c.(map[string]interface{})["id"]
+	logger, _ := c.(map[string]interface{})["logger"]
+	if logger == nil || logger == "" {
+		logger = "json"
+	}
+
 	event := processors.LogEvent{
-		Timestamp: time.Now().Unix(),
-		Data:      c,
-		Type:      "json",
+		Timestamp:  time.Now().Unix(),
+		Data:       c,
+		Type:       fmt.Sprint(logger),
+		PrimaryKey: fmt.Sprint(primaryKey),
 	}
 	return &event
 

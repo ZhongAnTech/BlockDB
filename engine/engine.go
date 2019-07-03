@@ -65,7 +65,9 @@ func (n *Engine) registerComponents() {
 		url := viper.GetString("backend.mongodb.url")
 		if url != "" {
 			builder := multiplexer.NewDefaultTCPConnectionBuilder(url)
-			observerFactory := mongodb.NewExtractorFactory(defaultLedgerWriter)
+			observerFactory := mongodb.NewExtractorFactory(defaultLedgerWriter, &mongodb.ExtractorConfig{
+				IgnoreMetaQuery: viper.GetBool("listener.mongodb.ignore_meta_query"),
+			})
 			mp := multiplexer.NewMultiplexer(builder, observerFactory)
 			l := listener.NewGeneralTCPListener(mp, viper.GetInt("listener.mongodb.incoming_port"),
 				viper.GetInt("listener.mongodb.incoming_max_connection"))

@@ -1,10 +1,14 @@
 package mongodb
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 	"time"
+
+	//"github.com/sirupsen/logrus"
 
 	"github.com/annchain/BlockDB/backends"
 	"github.com/annchain/BlockDB/multiplexer"
@@ -14,11 +18,17 @@ import (
 
 type ExtractorFactory struct {
 	ledgerWriter backends.LedgerWriter
+	config       *ExtractorConfig
 }
 
-func NewExtractorFactory(writer backends.LedgerWriter) *ExtractorFactory {
+type ExtractorConfig struct {
+	IgnoreMetaQuery bool
+}
+
+func NewExtractorFactory(writer backends.LedgerWriter, config *ExtractorConfig) *ExtractorFactory {
 	return &ExtractorFactory{
 		ledgerWriter: writer,
+		config:       config,
 	}
 }
 
@@ -62,6 +72,7 @@ type Extractor struct {
 	extract func(h *message.MessageHeader, b []byte) (*message.Message, error)
 
 	writer backends.LedgerWriter
+	config *ExtractorConfig
 
 	mu sync.RWMutex
 }
@@ -79,7 +90,7 @@ func NewExtractor(context multiplexer.DialogContext, writer backends.LedgerWrite
 
 func (e *Extractor) Write(p []byte) (int, error) {
 
-	//fmt.Println("new Write byte: ", p)
+	//fmt.Println("new Write byte: ", hex.Dump(p))
 
 	b := make([]byte, len(p))
 	copy(b, p)
@@ -122,10 +133,30 @@ func (e *Extractor) Write(p []byte) (int, error) {
 		Identity:   msg.DBUser,
 	}
 
-	//data, _ := json.Marshal(logEvent)
-	//fmt.Println("log event: ", string(data))
+	data, _ := json.Marshal(logEvent)
 
-	e.writer.EnqueueSendToLedger(logEvent)
+	write := true
+	if e.config.IgnoreMetaQuery {
+		s := string(p)
+		blacklist := []string{"buildinfo", "getlasterror", "architecture", "dbStats", "saslStart", "saslContinue", "listCollections", "collStats"}
+		if msg.DB == "admin" {
+			write = false
+		} else {
+			// check blacklist
+			for _, word := range blacklist {
+				if strings.Contains(s, word) {
+					fmt.Println("blacklist event: ", string(data))
+					write = false
+					break
+				}
+			}
+		}
+	}
+	if write {
+		//t, _ := json.Marshal(msg)
+		//logrus.WithField("ev", string(t)).Warn("log")
+		e.writer.EnqueueSendToLedger(logEvent)
+	}
 	e.reset()
 
 	return len(b), nil

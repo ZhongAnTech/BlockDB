@@ -66,13 +66,13 @@ func createHTTPClient() *http.Client {
 
 func (o *OgProcessor) EnqueueSendToLedger(data interface{}) {
 	o.dataChan <- data
-	resData, err := o.sendToLedger(data)
+	//resData, err := o.sendToLedger(data)
 
-	if err != nil {
-		logrus.WithError(err).Warn("send data to og failed")
-		return
-	}
-	logrus.WithField("res ", resData).Debug("got response")
+	//if err != nil {
+	//	logrus.WithError(err).Warn("send data to og failed")
+	//	return
+	//}
+	//logrus.WithField("res ", resData).Debug("got response")
 }
 
 func (o *OgProcessor) ConsumeQueue() {
@@ -151,7 +151,7 @@ func (o *OgProcessor) sendToLedger(data interface{}) (resData interface{}, err e
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		logrus.WithError(err).Fatalf("Couldn't parse response body.")
-		return  nil,err
+		return nil, err
 	}
 	var respj Response
 	err = json.Unmarshal(body, &respj)
@@ -165,9 +165,9 @@ func (o *OgProcessor) sendToLedger(data interface{}) (resData interface{}, err e
 		return nil, err
 	}
 	//check code
-	if response.StatusCode!=http.StatusOK {
-		err = fmt.Errorf("got response code %d ,response status %s",response.StatusCode,response.Status)
-		return nil,err
+	if response.StatusCode != http.StatusOK {
+		err = fmt.Errorf("got response code %d ,response status %s", response.StatusCode, response.Status)
+		return nil, err
 	}
 	return respj.Data, nil
 }
