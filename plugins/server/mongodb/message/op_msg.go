@@ -1,6 +1,7 @@
 package message
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/annchain/BlockDB/common/bytes"
@@ -77,25 +78,41 @@ func (mm *MsgMessage) extractFromBody(secBody *sectionBody) (user, db, op, colle
 	doc := secBody.Document
 	// user
 	if v, ok := doc["saslSupportedMechs"]; ok {
-		user = v.(string)
+		if user, ok = v.(string); !ok {
+			fmt.Println("saslSupportedMechs not string: ", doc)
+		}
 	}
 	// db
 	if v, ok := doc["$db"]; ok {
-		db = v.(string)
+		if db, ok = v.(string); !ok {
+			fmt.Println("$db not string: ", doc)
+		}
 	}
 	// op and collection
 	if v, ok := doc["update"]; ok {
 		op = "update"
-		collection = v.(string)
+		collection, ok = v.(string)
+		if !ok {
+			fmt.Println("collection not string: ", doc)
+		}
 	} else if v, ok := doc["insert"]; ok {
 		op = "insert"
-		collection = v.(string)
+		collection, ok = v.(string)
+		if !ok {
+			fmt.Println("collection not string: ", doc)
+		}
 	} else if v, ok := doc["query"]; ok {
 		op = "query"
-		collection = v.(string)
+		collection, ok = v.(string)
+		if !ok {
+			fmt.Println("collection not string: ", doc)
+		}
 	} else if v, ok := doc["delete"]; ok {
 		op = "delete"
-		collection = v.(string)
+		collection, ok = v.(string)
+		if !ok {
+			fmt.Println("collection not string: ", doc)
+		}
 	}
 
 	return
@@ -156,6 +173,20 @@ func newMsgFlags(b []byte, pos int) msgFlags {
 		ExhaustAllowed:  isFlagSetUInt32(b, pos, 16),
 	}
 	return flag
+}
+
+func (mf *msgFlags) MarshalJSON() ([]byte, error) {
+	r := map[string]bool{}
+	if mf.CheckSumPresent {
+		r["check_sum"] = true
+	}
+	if mf.MoreToCome {
+		r["more_to_come"] = true
+	}
+	if mf.ExhaustAllowed {
+		r["exhaust_allowed"] = true
+	}
+	return json.Marshal(r)
 }
 
 type section interface {

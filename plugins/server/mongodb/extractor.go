@@ -3,6 +3,7 @@ package mongodb
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"io"
 	"strings"
 	"sync"
@@ -34,8 +35,8 @@ func NewExtractorFactory(writer backends.LedgerWriter, config *ExtractorConfig) 
 
 func (e ExtractorFactory) GetInstance(context multiplexer.DialogContext) multiplexer.Observer {
 	return &ExtractorObserver{
-		req:  NewExtractor(context, e.ledgerWriter),
-		resp: NewExtractor(context, e.ledgerWriter),
+		req:  NewExtractor(context, e.ledgerWriter, e.config),
+		resp: NewExtractor(context, e.ledgerWriter, e.config),
 	}
 }
 
@@ -77,13 +78,14 @@ type Extractor struct {
 	mu sync.RWMutex
 }
 
-func NewExtractor(context multiplexer.DialogContext, writer backends.LedgerWriter) *Extractor {
+func NewExtractor(context multiplexer.DialogContext, writer backends.LedgerWriter, config *ExtractorConfig) *Extractor {
 	r := &Extractor{}
 
 	r.buf = make([]byte, 0)
 	r.extract = extractMessage
 	r.context = context
 	r.writer = writer
+	r.config = config
 
 	return r
 }
@@ -153,8 +155,8 @@ func (e *Extractor) Write(p []byte) (int, error) {
 		}
 	}
 	if write {
-		//t, _ := json.Marshal(msg)
-		//logrus.WithField("ev", string(t)).Warn("log")
+		t, _ := json.Marshal(msg)
+		logrus.WithField("ev", string(t)).Warn("log")
 		e.writer.EnqueueSendToLedger(logEvent)
 	}
 	e.reset()

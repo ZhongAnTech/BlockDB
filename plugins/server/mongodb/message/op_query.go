@@ -1,6 +1,7 @@
 package message
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/annchain/BlockDB/common/bytes"
 	"github.com/globalsign/mgo/bson"
@@ -102,4 +103,33 @@ func newQueryFlags(b []byte, pos int) queryFlags {
 		Partial:         isFlagSetInt32(b, pos, 7),
 	}
 	return q
+}
+
+func (qf *queryFlags) MarshalJSON() ([]byte, error) {
+	r := map[string]bool{}
+	if qf.Reserved {
+		r["reserved"] = true
+	}
+	if qf.TailableCursor {
+		r["tailable_cursor"] = true
+	}
+	if qf.SlaveOk {
+		r["slave_ok"] = true
+	}
+	if qf.OplogReplay {
+		r["log_reply"] = true
+	}
+	if qf.NoCursorTimeout {
+		r["no_cursor_timeout"] = true
+	}
+	if qf.AwaitData {
+		r["await_data"] = true
+	}
+	if qf.Exhaust {
+		r["exhaust"] = true
+	}
+	if qf.Partial {
+		r["partial"] = true
+	}
+	return json.Marshal(r)
 }

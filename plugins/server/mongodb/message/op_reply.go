@@ -1,6 +1,7 @@
 package message
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/annchain/BlockDB/common/bytes"
 	"github.com/globalsign/mgo/bson"
@@ -80,4 +81,21 @@ func newReplyFlags(b []byte, pos int) replyFlags {
 		ShardConfigStale: isFlagSetInt32(b, pos, 2),
 		AwaitCapable:     isFlagSetInt32(b, pos, 3),
 	}
+}
+
+func (rf *replyFlags) MarshalJSON() ([]byte, error) {
+	r := map[string]bool{}
+	if rf.CursorNotFound {
+		r["cursor_not_found"] = true
+	}
+	if rf.QueryFailure {
+		r["query_failure"] = true
+	}
+	if rf.ShardConfigStale {
+		r["shard_config_stale"] = true
+	}
+	if rf.AwaitCapable {
+		r["await_capable"] = true
+	}
+	return json.Marshal(r)
 }
