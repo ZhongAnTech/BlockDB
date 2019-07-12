@@ -1,0 +1,48 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: blockdb
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: blockdb
+    spec:
+      containers:
+        - name: blockdb
+          image: 172.28.152.101:5000/blockdb
+          env:
+            - name: BLOCKDB_LISTENER.KAFKA.ADDRESS
+#              value: "10.253.11.192:9092"
+              value: "10.110.197.21:9092"
+            - name: BLOCKDB_LISTENER.KAFKA.TOPIC
+              # value: "tech-tech-anlink-web-gateway-201907101551"
+               value: "anlink"
+            - name: BLOCKDB_OG.URL
+              value: "http://192.168.204.239:8000/new_archive"
+          ports:
+            - name: mongodb
+              containerPort: 28017
+            - name: log4j2socket
+              containerPort: 28018
+            - name: jsonsocket
+              containerPort: 28019
+          command:
+            ["./blockdb", "-c", "/opt/config.toml", "-m", "-n", "-l", "/rw/log/", "-d", "/rw/datadir", "run"]
+          resources:
+            limits:
+              cpu: "2"
+            requests:
+              cpu: "10m"
+apiVersion: v1
+kind: Service
+metadata:
+  name: blockdb-service
+spec:
+  selector:
+    app: blockdb
+  ports:
+    - protocol: TCP
+      port: 8019
+      targetPort: 28019
