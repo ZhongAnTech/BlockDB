@@ -5,9 +5,11 @@ import (
 	"github.com/annchain/BlockDB/listener"
 	"github.com/annchain/BlockDB/multiplexer"
 	"github.com/annchain/BlockDB/plugins/client/og"
-	"github.com/annchain/BlockDB/plugins/server/jsonSocket"
+	"github.com/annchain/BlockDB/plugins/server/jsondata"
+	"github.com/annchain/BlockDB/plugins/server/kafka"
 	"github.com/annchain/BlockDB/plugins/server/log4j2"
 	"github.com/annchain/BlockDB/plugins/server/mongodb"
+	"github.com/annchain/BlockDB/plugins/server/socket"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"time"
@@ -74,7 +76,6 @@ func (n *Engine) registerComponents() {
 
 			n.components = append(n.components, l)
 		}
-
 	}
 
 	if viper.GetBool("listener.log4j2Socket.enabled") {
@@ -92,15 +93,28 @@ func (n *Engine) registerComponents() {
 
 	if viper.GetBool("listener.jsonSocket.enabled") {
 		// Incoming connection handler
-		p := jsonSocket.NewJsonSocketProcessor(
-			jsonSocket.JsonSocketProcessorConfig{
+		p := socket.NewSocketProcessor(
+			socket.SocketConnectionProcessorConfig{
 				IdleConnectionTimeout: time.Second * time.Duration(viper.GetInt("listener.jsonSocket.idle_connection_seconds")),
 			},
+			jsondata.NewJsonDataProcessor(jsondata.JsonDataProcessorConfig{}),
 			defaultLedgerWriter,
 		)
 		l := listener.NewGeneralTCPListener(p, viper.GetInt("listener.jsonSocket.incoming_port"),
 			viper.GetInt("listener.jsonSocket.incoming_max_connection"))
 		n.components = append(n.components, l)
+	}
+
+	if viper.GetBool("listener.kafka.enabled") {
+		// Incoming connection handler
+		p := kafka.NewKafkaListener(kafka.KafkaProcessorConfig{
+			Topic:   viper.GetString("listener.kafka.topic"),
+			Address: viper.GetString("listener.kafka.address"),
+		},
+			jsondata.NewJsonDataProcessor(jsondata.JsonDataProcessorConfig{}),
+			defaultLedgerWriter,
+		)
+		n.components = append(n.components, p)
 	}
 
 }

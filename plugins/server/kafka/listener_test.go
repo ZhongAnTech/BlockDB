@@ -1,4 +1,4 @@
-package Kafka
+package kafka
 
 import (
 	"fmt"
