@@ -74,12 +74,11 @@ func (k *KafkaListener) doListen(partition kafka.Partition) {
 	}
 	logrus.WithField("partition", partition.ID).WithField("topic", k.config.Topic).Info("kafka partition consumer started")
 
-	cm := make(map[string]bool)
-
 	for !k.stopped {
 		m, err := r.ReadMessage(deadlineContext)
 		if err != nil {
 			if err.Error() == "context deadline exceeded" {
+				logrus.Debug("exceeded")
 				continue
 			}
 			logrus.WithError(err).WithField("partition", partition.ID).Error("partition error")
@@ -87,10 +86,6 @@ func (k *KafkaListener) doListen(partition kafka.Partition) {
 			continue
 		}
 		s := string(m.Value)
-		if _, ok := cm[s]; ok {
-			logrus.Warn("Duplicate value: " + s)
-		}
-		cm[s] = true
 		logrus.WithFields(logrus.Fields{
 			"partition": m.Partition,
 			"offset":    m.Offset,
