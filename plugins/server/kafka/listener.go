@@ -75,12 +75,8 @@ func (k *KafkaListener) doListen(partition kafka.Partition) {
 	logrus.WithField("partition", partition.ID).WithField("topic", k.config.Topic).Info("kafka partition consumer started")
 
 	for !k.stopped {
-		m, err := r.ReadMessage(deadlineContext)
+		m, err := r.ReadMessage(context.Background())
 		if err != nil {
-			if err.Error() == "context deadline exceeded" {
-				logrus.Debug("exceeded")
-				continue
-			}
 			logrus.WithError(err).WithField("partition", partition.ID).Error("partition error")
 			time.Sleep(time.Second * 1)
 			continue
