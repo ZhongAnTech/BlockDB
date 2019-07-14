@@ -33,18 +33,18 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: blockdb-service
+  name: blockdb
 spec:
   selector:
     app: blockdb
   type: NodePort
   ports:
-    - protocol: TCP
+    - name: mongodb
       port: 28017
-      targetPort: 30217
-    - protocol: TCP
+      nodePort: 30217
+    - name: log4jsocket
       port: 28018
-      targetPort: 30218
-    - protocol: TCP
+      nodePort: 30218
+    - name: jsonsocket
       port: 28019
-      targetPort: 30219
+      nodePort: 30219
