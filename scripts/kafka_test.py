@@ -17,7 +17,7 @@ class Producer(threading.Thread):
         producer = KafkaProducer(bootstrap_servers='10.253.11.192:9092')
 
         while not self.stop_event.is_set():
-            for i in range  (1000000):
+            for i in range(1):
                 d = {
                     "thread": "http-nio-8080-exec-5",
                     "level": "INFO",
@@ -37,21 +37,21 @@ class Producer(threading.Thread):
                     "threadPriority": 5
                 }
                 e = {
-                    "Identity" : "hahaha",
-                    "Type":"mongodb",
-                    "Ip" :"172.28.152.101",
-                    "PrimaryKey" :"nothing",
-                    "TimeStamp":1561375556,
-                    "Data" :d,
-                    "Before" :"og",
-                    "After" :"nothing",
+                    "Identity": "hahaha",
+                    "Type": "mongodb",
+                    "Ip": "172.28.152.101",
+                    "PrimaryKey": "nothing",
+                    "TimeStamp": 1561375556,
+                    "Data": d,
+                    "Before": "og",
+                    "After": "nothing",
 
                 }
                 ss = json.dumps(e)
-                #ss += '\0'
-                producer.send('tech-tech-anlink-web-gateway-201907101551', bytes(ss, 'utf-8'))
+                # ss += '\0'
+                # producer.send('tech-tech-anlink-web-gateway-201907101551', bytes(ss, 'utf-8'))
+                producer.send('anlink', bytes(ss, 'utf-8'))
                 # producer.send('tech-tech-anlink-web-gateway-201907101551', bytes(str(i), 'utf-8'))
-
 
                 time.sleep(0.1)
                 print(ss)
@@ -85,7 +85,7 @@ class Consumer(multiprocessing.Process):
 def main():
     tasks = [
         Producer(),
-        #Consumer()
+        # Consumer()
     ]
 
     for t in tasks:
