@@ -70,6 +70,7 @@ func (k *KafkaListener) doListen(partition kafka.Partition) {
 	deadlineContext, _ := context.WithDeadline(context.Background(), time.Now().Add(time.Second*3))
 	err := r.SetOffsetAt(deadlineContext, time.Now())
 	if err != nil {
+		logrus.WithError(err).WithField("partition", partition).Error("cannot set offset to partition")
 		return
 	}
 	logrus.WithField("partition", partition.ID).WithField("topic", k.config.Topic).Info("kafka partition consumer started")
