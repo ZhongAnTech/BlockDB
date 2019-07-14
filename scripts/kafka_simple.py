@@ -32,10 +32,12 @@ e = {
 }
 
 if __name__ == '__main__':
-    producer = KafkaProducer(bootstrap_servers='172.28.152.102:30092')
+    producer = KafkaProducer(bootstrap_servers=['172.28.152.102:30092'])
 
     for i in range(1):
         ss = json.dumps(e)
         # ss += '\0'
         # producer.send('tech-tech-anlink-web-gateway-201907101551', bytes(ss, 'utf-8'))
         producer.send('anlink', bytes(ss, 'utf-8'))
+        producer.flush()
+        print(ss)

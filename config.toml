@@ -20,8 +20,8 @@
 
     [listener.kafka]
     enabled = true
-    address = "10.253.11.192:9092"
-    topic = "tech-tech-anlink-web-gateway-201907101551"
+    address = "172.28.152.102:30092"
+    topic = "anlink"
 
 [backend]
     [backend.mongodb]
@@ -31,8 +31,8 @@
 
 [og]
 enabled = true
-# url="http://172.28.152.101:8000/new_archive"
-url="http://127.0.0.1:8000/new_archive"
+ url="http://127.0.0.1:8000/new_archive"
+#url="http://172.28.152.106:30100/new_archive"
 idle_connection_seconds = 5
 buffer_size = 100
 retry_times = 5

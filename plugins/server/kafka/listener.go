@@ -90,7 +90,7 @@ func (k *KafkaListener) doListen(partition kafka.Partition) {
 		}).Info("message")
 
 		events := k.dataProcessor.ParseCommand(m.Value)
-		for event := range events {
+		for _, event := range events {
 			k.ledgerWriter.EnqueueSendToLedger(event)
 		}
 	}
