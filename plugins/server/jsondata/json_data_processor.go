@@ -39,7 +39,7 @@ func (m *JsonDataProcessor) ParseCommand(bytes []byte) []*processors.LogEvent {
 		c.Type = "json"
 	}
 	if c.Timestamp == 0 {
-		c.Timestamp = time.Now().Unix()
+		c.Timestamp = time.Now().UnixNano() / 1e6
 	}
 	return []*processors.LogEvent{&c}
 
