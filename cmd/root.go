@@ -101,7 +101,7 @@ func init() {
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
-// initConfig reads in config file and ENV variables if set.
+// initConfig reads in config file
 func initConfig() {
 	if cfgFile != "" {
 		// Use config file from the flag.
@@ -123,10 +123,6 @@ func initConfig() {
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Println("Using config file:", viper.ConfigFileUsed())
 	}
-
-	viper.SetEnvPrefix("blockdb")
-	viper.AutomaticEnv() // read in environment variables that match
-
 }
 
 func panicIfError(err error, message string) {
