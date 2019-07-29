@@ -20,7 +20,7 @@ spec:
               value: "anlink"
             - name: BLOCKDB_OG.URL
               value: "http://ogar:8000/new_archive"
-            - name: BLOCKDB_AUDIT.MONGODB.connection_string
+            - name: BLOCKDB_AUDIT.MONGODB.CONNECTION_STRING
               value: "mongodb://rwusername:password@172.28.152.101:27017"
           ports:
             - name: mongodb
