@@ -52,6 +52,11 @@ type AuditEventDetail struct {
 
 func FromLogEvent(l *processors.LogEvent) (a AuditEventDetail) {
 	strt := time.Unix(0, l.Timestamp*int64(1000000))
+	loc, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		panic(err)
+	}
+	strt = strt.In(loc)
 
 	a = AuditEventDetail{
 		Type:       l.Type,
