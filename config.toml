@@ -31,8 +31,18 @@
 
 [og]
 enabled = true
- url="http://127.0.0.1:8000/new_archive"
+url="http://127.0.0.1:8000/new_archive"
 #url="http://172.28.152.106:30100/new_archive"
 idle_connection_seconds = 5
 buffer_size = 100
 retry_times = 5
+
+    [og.wsclient]
+    enabled = true
+    url="ws://172.28.152.106:30102/ws"
+
+[audit]
+    [audit.mongodb]
+    connection_string = "mongodb://@172.28.152.101:27017"
+    database = "blockDB"
+    collection = "queryblockdb_test"

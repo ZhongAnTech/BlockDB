@@ -4,6 +4,7 @@ import (
 	"github.com/annchain/BlockDB/backends"
 	"github.com/annchain/BlockDB/listener"
 	"github.com/annchain/BlockDB/multiplexer"
+	"github.com/annchain/BlockDB/ogws"
 	"github.com/annchain/BlockDB/plugins/client/og"
 	"github.com/annchain/BlockDB/plugins/server/jsondata"
 	"github.com/annchain/BlockDB/plugins/server/kafka"
@@ -117,4 +118,13 @@ func (n *Engine) registerComponents() {
 		n.components = append(n.components, p)
 	}
 
+	if viper.GetBool("og.wsclient.enabled") {
+		auditWriter := ogws.NewMongoDBAuditWriter(
+			viper.GetString("audit.mongodb.connection_string"),
+			viper.GetString("audit.mongodb.database"),
+			viper.GetString("audit.mongodb.collection"),
+		)
+		w := ogws.NewOGWSClient(viper.GetString("og.wsclient.url"), auditWriter)
+		n.components = append(n.components, w)
+	}
 }
