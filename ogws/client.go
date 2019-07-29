@@ -128,6 +128,8 @@ func (o *OGWSClient) handleMessage(bytes []byte) (result OGMessageList, err erro
 			continue
 		}
 
+		auditEventDetail := FromLogEvent(&logEvent)
+
 		auditEvent := &AuditEvent{
 			Signature:    ogms.Signature,
 			Type:         ogms.Type,
@@ -139,7 +141,7 @@ func (o *OGWSClient) handleMessage(bytes []byte) (result OGMessageList, err erro
 			ParentsHash:  ogms.ParentsHash,
 			Version:      ogms.Version,
 			Weight:       ogms.Weight,
-			Data:         &logEvent,
+			Data:         &auditEventDetail,
 		}
 		err = o.auditWriter.WriteOGMessage(auditEvent)
 		if err != nil {
