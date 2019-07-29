@@ -45,4 +45,4 @@ retry_times = 5
     [audit.mongodb]
     connection_string = "mongodb://@172.28.152.101:27017"
     database = "blockDB"
-    collection = "queryblockdb_test"
+    collection = "queryblockdb"
