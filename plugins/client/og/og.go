@@ -156,7 +156,7 @@ func (o *OgProcessor) sendToLedger(data interface{}) (resData interface{}, err e
 	var respj Response
 	err = json.Unmarshal(body, &respj)
 	if err != nil {
-		logrus.WithError(err).Warn("got error from og")
+		logrus.WithField("response ",string(body)).WithError(err).Warn("got error from og")
 		return respj, err
 	}
 	if respj.Message != "" {
