@@ -17,7 +17,7 @@ RUN make blockdb
 # Copy OG into basic alpine image
 FROM alpine:latest
 
-RUN apk add --no-cache curl iotop busybox-extras
+RUN apk add --no-cache curl iotop busybox-extras tzdata
 
 COPY --from=builder /go/src/github.com/annchain/BlockDB/deployment/config.toml /opt/config.toml
 COPY --from=builder /go/src/github.com/annchain/BlockDB/build/blockdb /opt/
