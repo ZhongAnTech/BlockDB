@@ -1,7 +1,7 @@
 from kafka import KafkaConsumer
 
 if __name__ == '__main__':
-    consumer = KafkaConsumer('anlink', bootstrap_servers=['47.100.222.11:30000'])
+    consumer = KafkaConsumer('anlink', bootstrap_servers=['47.100.222.11:30050'])
     for message in consumer:
         # message value and key are raw bytes -- decode if necessary!
         # e.g., for unicode: `message.value.decode('utf-8')`

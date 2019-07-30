@@ -13,7 +13,7 @@ d = {
 }
 e = {
     "identity": "user_id_234823",
-    "type": "system",
+    "type": "test",
     "ip": "222.333.22.33",
     "primary_key": "unique_id_2852",
     "timestamp": int(datetime.datetime.now().timestamp()) * 1000,
@@ -24,7 +24,7 @@ e = {
 }
 
 if __name__ == '__main__':
-    producer = KafkaProducer(bootstrap_servers=['47.100.222.11:30000'])
+    producer = KafkaProducer(bootstrap_servers=['47.100.222.11:30050'])
 
     for i in range(1):
         ss = json.dumps(e)

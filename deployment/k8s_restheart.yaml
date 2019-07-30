@@ -14,7 +14,7 @@ spec:
           image: softinstigate/restheart
           env:
             - name: MONGO_URI
-              value: "mongodb://172.28.152.101:27017"
+              value: "mongodb://u:p@mongo-service.production:27017"
           ports:
             - name: query
               containerPort: 8080
