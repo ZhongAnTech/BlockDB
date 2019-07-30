@@ -52,7 +52,7 @@ type AuditEventDetail struct {
 
 func FromLogEvent(l *processors.LogEvent) (a AuditEventDetail) {
 	strt := time.Unix(0, l.Timestamp*int64(1000000))
-	loc, err := time.LoadLocation("Asia/Shanghai")
+	loc, err := time.LoadLocation("Local")
 	if err != nil {
 		panic(err)
 	}
