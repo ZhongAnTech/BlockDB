@@ -4,18 +4,18 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"github.com/annchain/BlockDB/processors"
-	"github.com/gorilla/websocket"
+	"github.com/latifrons/gorews"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"log"
+	"net/http"
 	"net/url"
 	"time"
 )
 
 type OGWSClient struct {
 	url         *url.URL
-	quit        chan bool
 	auditWriter AuditWriter
+	client      *gorews.GorewsClient
 }
 
 func NewOGWSClient(ustr string, auditWriter AuditWriter) *OGWSClient {
@@ -27,7 +27,6 @@ func NewOGWSClient(ustr string, auditWriter AuditWriter) *OGWSClient {
 
 	return &OGWSClient{
 		url:         u,
-		quit:        make(chan bool),
 		auditWriter: auditWriter,
 	}
 }
@@ -36,66 +35,30 @@ func (o *OGWSClient) Start() {
 
 	logrus.WithField("url", o.url).Info("connecting to ws")
 
-	c, _, err := websocket.DefaultDialer.Dial(o.url.String(), nil)
+	client := gorews.NewGorewsClient()
+	var headers http.Header
+	err := client.Start(o.url.String(), headers, time.Second*5, time.Second*5, time.Second*5)
 	if err != nil {
-		logrus.WithError(err).Fatal("dial ws")
+		logrus.WithError(err).Fatal("init ws client")
 	}
+
 	logrus.WithField("url", o.url).Info("connected to ws")
 
-	err = c.WriteMessage(websocket.TextMessage, []byte("{\"event\":\"new_tx\"}"))
-	if err != nil {
-		logrus.WithError(err).Fatal("init ws")
-	}
-
-	defer c.Close()
-
-	done := make(chan struct{})
+	client.Outgoing <- []byte("{\"event\":\"new_tx\"}")
 
 	go func() {
-		defer close(done)
 		for {
-			_, message, err := c.ReadMessage()
+			msg := <-client.Incoming
+			_, err := o.handleMessage(msg)
 			if err != nil {
-				log.Println("read:", err)
-				return
+				logrus.WithError(err).Warn("failed to handle message: " + string(msg))
 			}
-			log.Printf("recv: %s", message)
-			o.handleMessage(message)
 		}
 	}()
-
-	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-done:
-			return
-		case <-ticker.C:
-			//err := c.WriteMessage(websocket.TextMessage, []byte(t.String()))
-			//if err != nil {
-			//	log.Println("write:", err)
-			//	return
-			//}
-		case <-o.quit:
-			// Cleanly close the connection by sending a close message and then
-			// waiting (with timeout) for the server to close the connection.
-			err := c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-			if err != nil {
-				log.Println("write close:", err)
-				return
-			}
-			select {
-			case <-done:
-			case <-time.After(time.Second):
-			}
-			return
-		}
-	}
 }
 
 func (o *OGWSClient) Stop() {
-	o.quit <- true
+	o.client.Stop()
 }
 
 func (OGWSClient) Name() string {
