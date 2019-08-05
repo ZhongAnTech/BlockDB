@@ -3,6 +3,7 @@ package mongodb
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/annchain/BlockDB/processors"
 	"github.com/sirupsen/logrus"
 	"io"
 	"strings"
@@ -14,7 +15,6 @@ import (
 	"github.com/annchain/BlockDB/backends"
 	"github.com/annchain/BlockDB/multiplexer"
 	"github.com/annchain/BlockDB/plugins/server/mongodb/message"
-	"github.com/annchain/BlockDB/processors"
 )
 
 type ExtractorFactory struct {
@@ -131,7 +131,7 @@ func (e *Extractor) Write(p []byte) (int, error) {
 		Ip:         e.context.Source.RemoteAddr().String(),
 		Data:       msg,
 		PrimaryKey: msg.DocID,
-		Timestamp:  int64(time.Now().Unix()),
+		Timestamp:  time.Now().UnixNano() / 1e6,
 		Identity:   msg.DBUser,
 	}
 

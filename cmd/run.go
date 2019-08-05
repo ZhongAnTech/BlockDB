@@ -71,6 +71,10 @@ func readConfig() {
 	viper.SetConfigType("toml")
 	err = viper.MergeConfig(file)
 	panicIfError(err, fmt.Sprintf("Error on reading config file: %s", absPath))
+
+	viper.SetEnvPrefix("blockdb")
+	viper.AutomaticEnv() // read in environment variables that match
+
 	keys := viper.AllKeys()
 	sort.Strings(keys)
 	for _, key := range keys {

@@ -13,7 +13,7 @@ type ProxyListener interface {
 }
 
 type GeneralTCPProxyListener struct {
-	processor         processors.Processor
+	processor         processors.ConnectionProcessor
 	port              int
 	ln                net.Listener
 	closed            bool
@@ -24,7 +24,7 @@ func (l *GeneralTCPProxyListener) Name() string {
 	return fmt.Sprintf("GeneralTCPProxyListener listening on %d", l.port)
 }
 
-func NewGeneralTCPListener(p processors.Processor, port int, maxConnectionSize int) *GeneralTCPProxyListener {
+func NewGeneralTCPListener(p processors.ConnectionProcessor, port int, maxConnectionSize int) *GeneralTCPProxyListener {
 	return &GeneralTCPProxyListener{
 		processor:         p,
 		port:              port,

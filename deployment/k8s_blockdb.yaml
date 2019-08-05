@@ -1,0 +1,57 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: blockdb
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: blockdb
+    spec:
+      containers:
+        - name: blockdb
+          image: 172.28.152.101:5000/blockdb
+          env:
+            - name: BLOCKDB_LISTENER.KAFKA.ADDRESS
+              value: "kafka-service.production:9092"
+            - name: BLOCKDB_LISTENER.KAFKA.TOPIC
+              value: "anlink"
+            - name: BLOCKDB_BACKEND.MONGODB.URL
+              value: "mongodb://mongo-service.production:27017"
+            - name: BLOCKDB_OG.URL
+              value: "http://ogblockdb-service.production:8000/new_archive"
+            - name: BLOCKDB_OG.WSCLIENT.URL
+              value: "ws://ogblockdb-service.production:8002/ws"
+            - name: BLOCKDB_AUDIT.MONGODB.CONNECTION_STRING
+              value: "mongodb://blockdb:wjs123@mongo-service.production:27017"
+            - name: TZ
+              value: "Asia/Shanghai"
+          ports:
+            - name: mongodb
+              containerPort: 28017
+            - name: log4j2socket
+              containerPort: 28018
+            - name: jsonsocket
+              containerPort: 28019
+          command:
+            ["./blockdb", "-c", "/opt/config.toml", "-m", "-n", "-l", "/rw/log/", "-d", "/rw/datadir", "run"]
+-------
+apiVersion: v1
+kind: Service
+metadata:
+  name: blockdb
+spec:
+  selector:
+    app: blockdb
+  type: NodePort
+  ports:
+    - name: mongodb
+      port: 28017
+      nodePort: 30317
+    - name: log4jsocket
+      port: 28018
+      nodePort: 30318
+    - name: jsonsocket
+      port: 28019
+      nodePort: 30319

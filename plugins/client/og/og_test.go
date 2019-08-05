@@ -71,13 +71,13 @@ func gettestData() *testData {
 func TestBatch(t *testing.T) {
 	logrus.SetLevel(logrus.WarnLevel)
 	data := gettestData()
-	p := NewOgProcessor(OgProcessorConfig{LedgerUrl: "http://172.28.152.101:8000//new_archive",BufferSize:100,RetryTimes:3})
+	p := NewOgProcessor(OgProcessorConfig{LedgerUrl: "http://172.28.152.101:8000//new_archive", BufferSize: 100, RetryTimes: 3})
 	p.Start()
 	defer p.Stop()
 	for {
 		select {
-		 case <-time.After(20*time.Microsecond):
-			 go p.EnqueueSendToLedger(data)
+		case <-time.After(20 * time.Microsecond):
+			go p.EnqueueSendToLedger(data)
 		}
 
 	}

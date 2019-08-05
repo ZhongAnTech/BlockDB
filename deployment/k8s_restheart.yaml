@@ -1,0 +1,33 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: restheart
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: restheart
+    spec:
+      containers:
+        - name: restheart
+          image: softinstigate/restheart
+          env:
+            - name: MONGO_URI
+              value: "mongodb://u:p@mongo-service.production:27017"
+          ports:
+            - name: query
+              containerPort: 8080
+-------
+apiVersion: v1
+kind: Service
+metadata:
+  name: restheart
+spec:
+  selector:
+    app: restheart
+  type: NodePort
+  ports:
+    - name: query
+      port: 8080
+      nodePort: 30216

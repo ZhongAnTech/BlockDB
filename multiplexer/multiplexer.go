@@ -130,8 +130,8 @@ func (p *Multiplexer) quitPair(part net.Conn) (err error) {
 func (m *Multiplexer) Start() {
 	go func() {
 		for !m.closed {
-			logrus.WithField("size", m.biMapConn.Size()).Info("poolsize")
-			time.Sleep(time.Second * 10)
+			logrus.WithField("size", m.biMapConn.Size()).Debug("poolsize")
+			time.Sleep(time.Second * 60)
 		}
 	}()
 }
