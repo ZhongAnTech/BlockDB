@@ -35,20 +35,20 @@ func (o *OGWSClient) Start() {
 
 	logrus.WithField("url", o.url).Info("connecting to ws")
 
-	client := gorews.NewGorewsClient()
+	o.client = gorews.NewGorewsClient()
 	var headers http.Header
-	err := client.Start(o.url.String(), headers, time.Second*5, time.Second*5, time.Second*5)
+	err := o.client.Start(o.url.String(), headers, time.Second*5, time.Second*5, time.Second*5)
 	if err != nil {
 		logrus.WithError(err).Fatal("init ws client")
 	}
 
 	logrus.WithField("url", o.url).Info("connected to ws")
 
-	client.Outgoing <- []byte("{\"event\":\"new_tx\"}")
+	o.client.Outgoing <- []byte("{\"event\":\"new_tx\"}")
 
 	go func() {
 		for {
-			msg := <-client.Incoming
+			msg := <-o.client.Incoming
 			_, err := o.handleMessage(msg)
 			if err != nil {
 				logrus.WithError(err).Warn("failed to handle message: " + string(msg))
