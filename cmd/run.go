@@ -32,6 +32,13 @@ var runCmd = &cobra.Command{
 	Short: "Start a full node",
 	Long:  `Start a full node`,
 	Run: func(cmd *cobra.Command, args []string) {
+		defer func() {
+			if err := recover(); err != nil {
+				fmt.Println(err)
+				panic(err)
+			}
+		}()
+
 		// init logs and other facilities before the node starts
 		readConfig()
 		initLogger()
