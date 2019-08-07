@@ -111,7 +111,7 @@ func (o *OGWSClient) handleMessage(bytes []byte) (result OGMessageList, err erro
 			logrus.WithError(err).Warn("failed to write ledger.")
 			continue
 		}
-		logrus.WithField("event timestamp", auditEvent.Data.Height).Debug("wrote audit event")
+		logrus.WithField("event timestamp", auditEvent.Height).Debug("wrote audit event")
 	}
 	return
 }
