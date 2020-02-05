@@ -1,0 +1,41 @@
+# https://sequencediagram.org/
+
+title BlockDB
+
+activate Application
+Application->BlockDB: JSON string
+activate BlockDB
+BlockDB->AnnchainOG: Archive data with docID
+activate AnnchainOG
+BlockDB-->Application: docID
+deactivate BlockDB
+deactivateafter Application
+AnnchainOG->AnnchainOG: Consensus
+AnnchainOG->BlockDB: Push event with docIDs
+deactivate BlockDB
+deactivate AnnchainOG
+activate BlockDB
+opt push model
+BlockDB->Application: Push event with docID
+end
+opt pull model
+Application->BlockDB: Pull status of docID
+activate Application
+BlockDB ->Application: status of docID
+deactivateafter Application
+end
+
+
+==Query by MongoDB Query Language==
+activate Application
+Application->BlockDB: Docs query request
+BlockDB->Application: Docs query response
+deactivateafter Application
+deactivate BlockDB
+
+==Query by docID ==
+activate Application
+Application->BlockDB: docID
+BlockDB->Application: Docs query response
+deactivateafter Application
+deactivate BlockDB
