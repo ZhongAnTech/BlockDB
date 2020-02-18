@@ -70,13 +70,13 @@ func (k *KafkaListener) doListen() {
 		k.wg.Done()
 	}()
 
-	deadlineContext, _ := context.WithDeadline(context.Background(), time.Now().Add(time.Second*3))
-	err := r.SetOffsetAt(deadlineContext, time.Now())
-	if err != nil {
-		logrus.WithError(err).Error("cannot set offset to partition")
-		return
-	}
-	logrus.WithField("topic", k.config.Topic).Info("kafka partition consumer started")
+	//deadlineContext, _ := context.WithDeadline(context.Background(), time.Now().Add(time.Second*3))
+	//err := r.SetOffsetAt(deadlineContext, time.Now())
+	//if err != nil {
+	//	logrus.WithError(err).Error("cannot set offset to partition")
+	//	return
+	//}
+	logrus.WithField("groupid",k.config.GroupId).WithField("topic", k.config.Topic).Info("kafka  consumer started")
 
 	for !k.stopped {
 		m, err := r.ReadMessage(context.Background())
