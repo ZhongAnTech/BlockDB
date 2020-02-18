@@ -119,6 +119,7 @@ func (n *Engine) registerComponents() {
 		p := kafka.NewKafkaListener(kafka.KafkaProcessorConfig{
 			Topic:   viper.GetString("listener.kafka.topic"),
 			Address: viper.GetString("listener.kafka.address"),
+			GroupId: viper.GetString("listener.kafka.group_id"),
 		},
 			jsondata.NewJsonDataProcessor(jsondata.JsonDataProcessorConfig{}),
 			defaultLedgerWriter,

@@ -22,6 +22,7 @@
     enabled = true
     address = "172.28.152.102:30092"
     topic = "anlink"
+    group_id = "groupid"
 
 [backend]
     [backend.mongodb]
