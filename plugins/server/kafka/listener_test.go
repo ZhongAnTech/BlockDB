@@ -2,10 +2,12 @@ package kafka
 
 import (
 	"fmt"
-	"github.com/spf13/viper"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/annchain/BlockDB/plugins/server/jsondata"
+	"github.com/spf13/viper"
 )
 
 func TestListener(t *testing.T) {
@@ -21,13 +23,20 @@ func TestListener(t *testing.T) {
 	config := KafkaProcessorConfig{
 		Topic:   viper.GetString("listener.kafka.topic"),
 		Address: viper.GetString("listener.kafka.address"),
+		GroupId: viper.GetString("istener.kafka.group_id"),
 	}
 	fmt.Println(config)
-
-	l := NewKafkaListener(config, nil)
+	l := NewKafkaListener(config, &jsondata.JsonDataProcessor{}, &ledgerSender{})
 	l.Start()
 
 	for true {
 		time.Sleep(time.Second)
 	}
+}
+
+type ledgerSender struct {
+}
+
+func (l *ledgerSender) EnqueueSendToLedger(data interface{}) {
+	fmt.Println(data)
 }

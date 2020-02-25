@@ -2,13 +2,14 @@ package kafka
 
 import (
 	"context"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/annchain/BlockDB/backends"
 	"github.com/annchain/BlockDB/processors"
 	"github.com/segmentio/kafka-go"
 	"github.com/sirupsen/logrus"
-	"strings"
-	"sync"
-	"time"
 )
 
 type KafkaProcessorConfig struct {
@@ -58,8 +59,9 @@ func (k *KafkaListener) Stop() {
 }
 
 func (k *KafkaListener) doListen() {
+	brokers := strings.Split(k.config.Address, ";")
 	r := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:   strings.Split(k.config.Address, ";"),
+		Brokers:   brokers,
 		Topic:     k.config.Topic,
 		MinBytes:  1,    // 1B
 		MaxBytes:  10e6, // 10MB,
@@ -76,7 +78,7 @@ func (k *KafkaListener) doListen() {
 	//	logrus.WithError(err).Error("cannot set offset to partition")
 	//	return
 	//}
-	logrus.WithField("groupid",k.config.GroupId).WithField("topic", k.config.Topic).Info("kafka  consumer started")
+	logrus.WithField("brokers",brokers).WithField("groupid",k.config.GroupId).WithField("topic", k.config.Topic).Info("kafka  consumer started")
 
 	for !k.stopped {
 		m, err := r.ReadMessage(context.Background())

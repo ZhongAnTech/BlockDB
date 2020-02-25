@@ -42,5 +42,19 @@ func NewMongoDBAuditWriter(connectionString string, database string, collection 
 	}
 	coll := client.Database(database).Collection(collection)
 	m.coll = coll
+	m.createUsersIndex()
 	return m
+}
+
+func (m *MongoDBAuditWriter) createUsersIndex() {
+	unique := true
+	ctx, _ := context.WithTimeout(context.Background(), time.Second*10)
+	_, err := m.coll.Indexes().CreateMany(ctx, []mongo.IndexModel{
+		{
+			Keys:    bson.M{"hash": 1},
+			Options: &options.IndexOptions{Unique: &unique}},
+	})
+	if err != nil {
+		logrus.WithError(err).Warn("create index error")
+	}
 }
