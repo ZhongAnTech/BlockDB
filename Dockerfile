@@ -25,7 +25,7 @@ COPY --from=builder /go/src/github.com/annchain/BlockDB/build/blockdb /opt/
 # for a temp running folder. This should be mounted from the outside
 RUN mkdir /rw
 
-EXPOSE 28017 28018 28019
+EXPOSE 28017 28018 28019 28020
 
 WORKDIR /opt
 
