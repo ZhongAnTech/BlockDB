@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/annchain/BlockDB/ogws"
 	"github.com/annchain/BlockDB/plugins/client/og"
 	"github.com/annchain/BlockDB/processors"
 	"github.com/gin-gonic/gin"
@@ -15,6 +14,9 @@ import (
 	"io/ioutil"
 	"strconv"
 	"strings"
+
+	//"strconv"
+	//"strings"
 	"time"
 )
 
@@ -59,9 +61,10 @@ func (rc *RpcController) GetDoc(ct *gin.Context) {
 	logrus.Info(ct.Param("hash"))
 	filter := bson.M{"hash": ct.Param("hash")}
 
-	var result ogws.AuditEvent
+	var result interface{}
+	tempResult := bson.M{}
 	mongoResult := collection.FindOne(ctx, filter)
-	err = mongoResult.Decode(&result)
+	err = mongoResult.Decode(&tempResult)
 
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
@@ -72,6 +75,12 @@ func (rc *RpcController) GetDoc(ct *gin.Context) {
 		logrus.WithError(err).Warn("failed to decode")
 		Response(ct, 500, err, nil)
 		return
+	}
+	obj, _ := json.Marshal(tempResult)
+	err = json.Unmarshal(obj, &result)
+	if err != nil {
+		logrus.WithError(err).Warn("failed to decode")
+		Response(ct, 500, err, nil)
 	}
 
 	Response(ct, 200, nil, result)
@@ -159,17 +168,26 @@ func (rc *RpcController) QueryDoc(ct *gin.Context) {
 		return
 	}
 
-	docs := []ogws.AuditEvent{}
+	docs := []interface{}{}
 	defer cursor.Close(ctx)
 
 	for cursor.Next(ctx) {
-		var result ogws.AuditEvent
-		err := cursor.Decode(&result)
+		var result interface{}
+		tempResult := bson.M{}
+
+		err := cursor.Decode(&tempResult)
 		if err != nil {
 			logrus.WithError(err).Warn("failed to decode")
 			Response(ct, 500, err, nil)
 			return
 		}
+		obj, _ := json.Marshal(tempResult)
+		err = json.Unmarshal(obj, &result)
+		if err != nil {
+			logrus.WithError(err).Warn("failed to decode")
+			Response(ct, 500, err, nil)
+		}
+
 		docs = append(docs, result)
 	}
 
