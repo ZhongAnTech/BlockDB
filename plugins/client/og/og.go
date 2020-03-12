@@ -66,7 +66,7 @@ func createHTTPClient() *http.Client {
 
 func (o *OgProcessor) EnqueueSendToLedger(data interface{}) {
 	o.dataChan <- data
-	//resData, err := o.sendToLedger(data)
+	//resData, err := o.SendToLedger(data)
 
 	//if err != nil {
 	//	logrus.WithError(err).Warn("send data to og failed")
@@ -83,7 +83,7 @@ outside:
 		case data := <-o.dataChan:
 			retry := 0
 			for ; retry < o.config.RetryTimes; retry++ {
-				resData, err := o.sendToLedger(data)
+				resData, err := o.SendToLedger(data)
 				if err != nil {
 					logrus.WithField("retry", retry).WithError(err).Warnf("failed to send to ledger")
 				} else {
@@ -117,8 +117,8 @@ func timeTrack(start time.Time, name string) {
 	logrus.Debugf("%s took %s", name, elapsed)
 }
 
-func (o *OgProcessor) sendToLedger(data interface{}) (resData interface{}, err error) {
-	defer timeTrack(time.Now(), "sendToLedger")
+func (o *OgProcessor) SendToLedger(data interface{}) (resData interface{}, err error) {
+	defer timeTrack(time.Now(), "SendToLedger")
 
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
@@ -156,8 +156,8 @@ func (o *OgProcessor) sendToLedger(data interface{}) (resData interface{}, err e
 	var respj Response
 	err = json.Unmarshal(body, &respj)
 	if err != nil {
-		logrus.WithField("response ",string(body)).WithError(err).Warnf(
-			"got error from og , status %d ,%s ",response.StatusCode,response.Status)
+		logrus.WithField("response ", string(body)).WithError(err).Warnf(
+			"got error from og , status %d ,%s ", response.StatusCode, response.Status)
 		return respj, err
 	}
 	if respj.Message != "" {

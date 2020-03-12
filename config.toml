@@ -1,4 +1,5 @@
 [listener]
+    # for mongodb proxy
     [listener.mongodb]
     enabled = true
     incoming_port = 28017
@@ -6,32 +7,52 @@
     idle_connection_seconds = 30
     ignore_meta_query = true
 
+    # log4j listener to accept log4j requests
     [listener.log4j2Socket]
     enabled = true
     incoming_port = 28018
     incoming_max_connection = 10
     idle_connection_seconds = 30
 
+    # json socket listener to receive raw json data
     [listener.jsonSocket]
     enabled = true
     incoming_port = 28019
     incoming_max_connection = 10
     idle_connection_seconds = 30
 
+    # kafka listener to receive json data in kafka message
     [listener.kafka]
-    enabled = true
+    enabled = false
     address = "172.28.152.102:30092"
     topic = "anlink"
 
+    # http server to receive json data in http post request
+    [listener.http]
+    enabled = true
+    incoming_port = 28020
+
+
+# operations received by listener.mongodb will be proxied to this mongodb
 [backend]
     [backend.mongodb]
-    # see http://mongodb.github.io/mongo-java-driver/3.6/javadoc/?com/mongodb/ConnectionString.html for full connection parameters
-    connection_string = "mongodb://[username:password@]host1[:port1][,host2[:port2],...[,hostN[:portN]]][/[database.collection][?options]]"
-    url = "172.28.152.101:27017"
+    # here is the mongodb server which is being proxied by blockdb
+    # only host and port is specified since authentication is handled transparently.
+    url = "127.0.0.1:27017"
 
+# operations on backend.mongodb will be recorded to this audit table
+[audit]
+    [audit.mongodb]
+    # see http://mongodb.github.io/mongo-java-driver/3.6/javadoc/?com/mongodb/ConnectionString.html for full connection parameters
+    connection_string = "mongodb://blockdbw:wjs123@127.0.0.1:27017"
+    database = "blockDB"
+    collection = "queryblockdb"
+
+
+# blockchain API for archive and query
 [og]
 enabled = true
-url="http://127.0.0.1:8000/new_archive"
+url="http://172.28.152.103:30100/new_archive"
 #url="http://172.28.152.106:30100/new_archive"
 idle_connection_seconds = 5
 buffer_size = 100
@@ -39,10 +60,4 @@ retry_times = 5
 
     [og.wsclient]
     enabled = true
-    url="ws://172.28.152.106:30102/ws"
-
-[audit]
-    [audit.mongodb]
-    connection_string = "mongodb://@172.28.152.101:27017"
-    database = "blockDB"
-    collection = "queryblockdb"
+    url="ws://172.28.152.103:30102/ws"

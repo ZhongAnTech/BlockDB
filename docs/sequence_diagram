@@ -1,5 +1,3 @@
-# https://sequencediagram.org/
-
 title BlockDB
 
 activate Application
@@ -11,8 +9,7 @@ BlockDB-->Application: docID
 deactivate BlockDB
 deactivateafter Application
 AnnchainOG->AnnchainOG: Consensus
-AnnchainOG->BlockDB: Push event with docIDs
-deactivate BlockDB
+AnnchainOG->BlockDB: Push/pull event with docIDs
 deactivate AnnchainOG
 activate BlockDB
 opt push model
@@ -35,7 +32,9 @@ deactivate BlockDB
 
 ==Query by docID ==
 activate Application
+activate BlockDB
 Application->BlockDB: docID
 BlockDB->Application: Docs query response
-deactivateafter Application
 deactivate BlockDB
+deactivateafter Application
+

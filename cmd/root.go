@@ -73,12 +73,12 @@ func DumpStack() {
 }
 
 func init() {
-	cobra.OnInitialize(initConfig)
+	//cobra.OnInitialize(initConfig)
 
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
-	rootCmd.PersistentFlags().StringP("datadir", "d", "datadir", fmt.Sprintf("Runtime directory for storage and configurations"))
+	rootCmd.PersistentFlags().StringP("datadir", "d", "data", fmt.Sprintf("Runtime directory for storage and configurations"))
 	rootCmd.PersistentFlags().StringP("config", "c", "config.toml", "Path for configuration file or url of config server")
 	rootCmd.PersistentFlags().StringP("log_dir", "l", "", "Path for configuration file. Not enabled by default")
 	rootCmd.PersistentFlags().BoolP("log_stdout", "s", false, "Whether the log will be printed to stdout")

@@ -6,6 +6,7 @@ import (
 	"github.com/annchain/BlockDB/multiplexer"
 	"github.com/annchain/BlockDB/ogws"
 	"github.com/annchain/BlockDB/plugins/client/og"
+	"github.com/annchain/BlockDB/plugins/server/httpserver"
 	"github.com/annchain/BlockDB/plugins/server/jsondata"
 	"github.com/annchain/BlockDB/plugins/server/kafka"
 	"github.com/annchain/BlockDB/plugins/server/log4j2"
@@ -18,6 +19,18 @@ import (
 
 type Engine struct {
 	components []Component
+}
+
+func (n *Engine) Name() string {
+	return "Engine"
+}
+
+func (n *Engine) GetBenchmarks() map[string]interface{} {
+	benchmark := make(map[string]interface{})
+	for _, component := range n.components {
+		benchmark[component.Name()] = component
+	}
+	return benchmark
 }
 
 func NewEngine() *Engine {
@@ -51,6 +64,7 @@ func (n *Engine) Stop() {
 func (n *Engine) registerComponents() {
 
 	var defaultLedgerWriter backends.LedgerWriter
+	var ogProcessor *og.OgProcessor
 
 	if viper.GetBool("og.enabled") {
 		url := viper.GetString("og.url")
@@ -59,6 +73,7 @@ func (n *Engine) registerComponents() {
 			BufferSize:            viper.GetInt("og.buffer_size"),
 			RetryTimes:            viper.GetInt("og.retry_times"),
 		})
+		ogProcessor = p
 		defaultLedgerWriter = p
 		n.components = append(n.components, p)
 	}
@@ -115,6 +130,21 @@ func (n *Engine) registerComponents() {
 			jsondata.NewJsonDataProcessor(jsondata.JsonDataProcessorConfig{}),
 			defaultLedgerWriter,
 		)
+		n.components = append(n.components, p)
+	}
+
+	if viper.GetBool("listener.http.enabled") {
+		// Incoming connection handler
+		p := &httpserver.HttpListener{
+			Port: viper.GetString("listener.http.incoming_port"),
+			C: &httpserver.RpcController{
+				Processor:             ogProcessor,
+				AuditConnectionString: viper.GetString("audit.mongodb.connection_string"),
+				AuditDatabase:         viper.GetString("audit.mongodb.database"),
+				AuditCollection:       viper.GetString("audit.mongodb.collection"),
+			},
+		}
+		p.InitDefault()
 		n.components = append(n.components, p)
 	}
 
