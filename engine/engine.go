@@ -13,6 +13,7 @@ import (
 	"github.com/annchain/BlockDB/plugins/server/socket"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+	"net/http"
 	"time"
 )
 
@@ -34,6 +35,13 @@ func (n *Engine) Start() {
 		logrus.Infof("Started: %s", component.Name())
 
 	}
+	port := viper.GetString("port")
+	if port =="" {
+		port ="8080"
+	}
+
+	go n.HealthCheck(port)
+
 	logrus.Info("BlockDB Engine Started")
 }
 
@@ -111,6 +119,7 @@ func (n *Engine) registerComponents() {
 		p := kafka.NewKafkaListener(kafka.KafkaProcessorConfig{
 			Topic:   viper.GetString("listener.kafka.topic"),
 			Address: viper.GetString("listener.kafka.address"),
+			GroupId: viper.GetString("listener.kafka.group_id"),
 		},
 			jsondata.NewJsonDataProcessor(jsondata.JsonDataProcessorConfig{}),
 			defaultLedgerWriter,
@@ -127,4 +136,19 @@ func (n *Engine) registerComponents() {
 		w := ogws.NewOGWSClient(viper.GetString("og.wsclient.url"), auditWriter)
 		n.components = append(n.components, w)
 	}
+}
+
+
+func (n*Engine)HealthCheck( port string ) {
+	mux := http.NewServeMux()
+
+	healthHandler:= func(rw http.ResponseWriter, req *http.Request) {
+		rw.WriteHeader(http.StatusOK)
+		rw.Write([]byte("ok"))
+	}
+
+	mux.HandleFunc("/health",healthHandler )
+	logrus.Info("healthCheck port ",port)
+	logrus.Fatal(http.ListenAndServe(":"+port, mux))
+
 }

@@ -24,7 +24,6 @@ import (
 	"time"
 )
 
-
 func panicIfError(err error, message string) {
 	if err != nil {
 		fmt.Println(message)
@@ -66,11 +65,11 @@ func InitLogger(logger *logrus.Logger, logdir string, outputFile string) *logrus
 		writer = logger.Out
 	}
 	return &logrus.Logger{
-		Level:     logger.Level,
-		Formatter: logger.Formatter,
-		Out:       writer,
-		Hooks:     logger.Hooks,
+		Level:        logger.Level,
+		Formatter:    logger.Formatter,
+		Out:          writer,
+		Hooks:        logger.Hooks,
 		ReportCaller: logger.ReportCaller,
-		ExitFunc: logger.ExitFunc,
+		ExitFunc:     logger.ExitFunc,
 	}
 }

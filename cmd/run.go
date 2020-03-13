@@ -65,7 +65,6 @@ var runCmd = &cobra.Command{
 
 func readConfig() {
 	configPath := viper.GetString("config")
-	//datadirPath := viper.GetString("datadir")
 
 	absPath, err := filepath.Abs(configPath)
 	fmt.Println(absPath)

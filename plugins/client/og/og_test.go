@@ -44,7 +44,7 @@ type testObjectData struct {
 
 func TestNewOgProcessor(t *testing.T) {
 	logrus.SetLevel(logrus.TraceLevel)
-	p := NewOgProcessor(OgProcessorConfig{LedgerUrl: "http://172.28.152.101:8040//new_archive",RetryTimes:3,BufferSize:15,})
+	p := NewOgProcessor(OgProcessorConfig{LedgerUrl: "http://172.28.152.101:8040//new_archive", RetryTimes: 3, BufferSize: 15})
 	p.Start()
 	defer p.Stop()
 	p.EnqueueSendToLedger("this is a message")

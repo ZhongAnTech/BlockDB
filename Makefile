@@ -1,4 +1,4 @@
 .PHONY: blockdb all
 all:blockdb
-og:
+blockdb:
 	go build  -o ./build/blockdb  ./main.go
