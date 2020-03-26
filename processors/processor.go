@@ -12,5 +12,5 @@ type ConnectionProcessor interface {
 }
 
 type DataProcessor interface {
-	ParseCommand(bytes []byte) []*LogEvent
+	ParseCommand(bytes []byte) ([]*LogEvent, error)
 }

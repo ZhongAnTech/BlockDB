@@ -94,7 +94,7 @@ func (k *KafkaListener) doListen() {
 			"msg":       s,
 		}).Info("message")
 
-		events := k.dataProcessor.ParseCommand(m.Value)
+		events, err := k.dataProcessor.ParseCommand(m.Value)
 		for _, event := range events {
 			k.ledgerWriter.EnqueueSendToLedger(event)
 		}

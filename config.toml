@@ -24,6 +24,14 @@
     topic = "anlink"
     group_id = "groupid"
 
+    [listener.http]
+    enabled = true
+    port = 8080
+    enable_audit = false
+    enable_health = true
+    max_content_length = 10000000
+
+
 [backend]
     [backend.mongodb]
     # see http://mongodb.github.io/mongo-java-driver/3.6/javadoc/?com/mongodb/ConnectionString.html for full connection parameters
@@ -47,3 +55,7 @@ retry_times = 5
     connection_string = "mongodb://@172.28.152.101:27017"
     database = "blockDB"
     collection = "queryblockdb"
+
+[debug]
+    enabled = false
+    port = 8091
