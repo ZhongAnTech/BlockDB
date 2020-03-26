@@ -1,6 +1,11 @@
 package engine
 
 import (
+	"fmt"
+	"net/http"
+	_ "net/http/pprof"
+	"time"
+
 	"github.com/annchain/BlockDB/backends"
 	"github.com/annchain/BlockDB/listener"
 	"github.com/annchain/BlockDB/multiplexer"
@@ -11,10 +16,9 @@ import (
 	"github.com/annchain/BlockDB/plugins/server/log4j2"
 	"github.com/annchain/BlockDB/plugins/server/mongodb"
 	"github.com/annchain/BlockDB/plugins/server/socket"
+	"github.com/annchain/BlockDB/plugins/server/web"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"net/http"
-	"time"
 )
 
 type Engine struct {
@@ -35,12 +39,10 @@ func (n *Engine) Start() {
 		logrus.Infof("Started: %s", component.Name())
 
 	}
-	port := viper.GetString("port")
-	if port =="" {
-		port ="8080"
+	if viper.GetBool("debug.enabled") {
+		port := viper.GetInt("debug.port")
+		go logrus.Fatal(http.ListenAndServe("localhost:"+fmt.Sprintf("%d",port),nil))
 	}
-
-	go n.HealthCheck(port)
 
 	logrus.Info("BlockDB Engine Started")
 }
@@ -136,19 +138,17 @@ func (n *Engine) registerComponents() {
 		w := ogws.NewOGWSClient(viper.GetString("og.wsclient.url"), auditWriter)
 		n.components = append(n.components, w)
 	}
-}
+	if viper.GetBool("listener.http.enabled"){
+		p := web.NewHttpListener(web.HttpListenerConfig{
+			Port:   viper.GetInt("listener.http.port"),
+			EnableAudit: viper.GetBool("listener.http.enable_audit"),
+			EnableHealth: viper.GetBool("listener.http.enable_health"),
+			MaxContentLength: viper.GetInt64("listener.http.max_content_length"),
+		},
+			jsondata.NewJsonDataProcessor(jsondata.JsonDataProcessorConfig{}),
+			defaultLedgerWriter,
+		)
+		n.components = append(n.components, p)
 
-
-func (n*Engine)HealthCheck( port string ) {
-	mux := http.NewServeMux()
-
-	healthHandler:= func(rw http.ResponseWriter, req *http.Request) {
-		rw.WriteHeader(http.StatusOK)
-		rw.Write([]byte("ok"))
 	}
-
-	mux.HandleFunc("/health",healthHandler )
-	logrus.Info("healthCheck port ",port)
-	logrus.Fatal(http.ListenAndServe(":"+port, mux))
-
 }
