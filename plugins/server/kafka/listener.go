@@ -40,15 +40,18 @@ func NewKafkaListener(config KafkaProcessorConfig, dataProcessor processors.Data
 }
 
 func (k *KafkaListener) Start() {
-	//ps, _ := kafka.LookupPartitions(context.Background(), "tcp", k.config.Address, k.config.Topic)
+	if k.config.GroupId=="" {
+		ps, _ := kafka.LookupPartitions(context.Background(), "tcp", k.config.Address, k.config.Topic)
 
-	// currently we will listen to all partitions
-	//for _, p := range ps {
-	//	k.wg.Add(1)
-	//	go k.doListen(p)
-	//}
-	k.wg.Add(1)
-	go k.doListen()
+		//currently we will listen to all partitions
+		for _, p := range ps {
+			k.wg.Add(1)
+			go k.doListen(p.ID)
+		}
+	}else {
+		k.wg.Add(1)
+		go k.doListen(0)
+	}
 	logrus.Info("KafkaListener started")
 }
 
@@ -58,11 +61,12 @@ func (k *KafkaListener) Stop() {
 	logrus.Info("KafkaListener stopped")
 }
 
-func (k *KafkaListener) doListen() {
+func (k *KafkaListener) doListen(partitionId int ) {
 	brokers := strings.Split(k.config.Address, ";")
 	r := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:  brokers,
 		Topic:    k.config.Topic,
+		Partition: partitionId,
 		MinBytes: 1,    // 1B
 		MaxBytes: 10e6, // 10MB,
 		GroupID:  k.config.GroupId,
@@ -71,19 +75,20 @@ func (k *KafkaListener) doListen() {
 		_ = r.Close()
 		k.wg.Done()
 	}()
-
-	//deadlineContext, _ := context.WithDeadline(context.Background(), time.Now().Add(time.Second*3))
-	//err := r.SetOffsetAt(deadlineContext, time.Now())
-	//if err != nil {
-	//	logrus.WithError(err).Error("cannot set offset to partition")
-	//	return
-	//}
-	logrus.WithField("brokers", brokers).WithField("groupid", k.config.GroupId).WithField("topic", k.config.Topic).Info("kafka  consumer started")
+    if k.config.GroupId=="" {
+		deadlineContext, _ := context.WithDeadline(context.Background(), time.Now().Add(time.Second*3))
+		err := r.SetOffsetAt(deadlineContext, time.Now())
+		if err != nil {
+			logrus.WithError(err).Error("cannot set offset to partition")
+			return
+		}
+	}
+	logrus.WithField("brokers", brokers).WithField("groupid", k.config.GroupId).WithField("partition",partitionId).WithField("topic", k.config.Topic).Info("kafka  consumer started")
 
 	for !k.stopped {
 		m, err := r.ReadMessage(context.Background())
 		if err != nil {
-			logrus.WithError(err).Error("read msg error")
+			logrus.WithError(err).WithField("partition",partitionId).Error("read msg error")
 			time.Sleep(time.Second * 1)
 			continue
 		}
