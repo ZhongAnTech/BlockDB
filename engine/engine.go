@@ -41,7 +41,7 @@ func (n *Engine) Start() {
 	}
 	if viper.GetBool("debug.enabled") {
 		port := viper.GetInt("debug.port")
-		go logrus.Fatal(http.ListenAndServe("localhost:"+fmt.Sprintf("%d",port),nil))
+		go logrus.Fatal(http.ListenAndServe("localhost:"+fmt.Sprintf("%d", port), nil))
 	}
 
 	logrus.Info("BlockDB Engine Started")
@@ -128,25 +128,25 @@ func (n *Engine) registerComponents() {
 		)
 		n.components = append(n.components, p)
 	}
-
+	auditWriter := ogws.NewMongoDBAuditWriter(
+		viper.GetString("audit.mongodb.connection_string"),
+		viper.GetString("audit.mongodb.database"),
+		viper.GetString("audit.mongodb.collection"),
+	)
 	if viper.GetBool("og.wsclient.enabled") {
-		auditWriter := ogws.NewMongoDBAuditWriter(
-			viper.GetString("audit.mongodb.connection_string"),
-			viper.GetString("audit.mongodb.database"),
-			viper.GetString("audit.mongodb.collection"),
-		)
 		w := ogws.NewOGWSClient(viper.GetString("og.wsclient.url"), auditWriter)
 		n.components = append(n.components, w)
 	}
-	if viper.GetBool("listener.http.enabled"){
+	if viper.GetBool("listener.http.enabled") {
 		p := web.NewHttpListener(web.HttpListenerConfig{
-			Port:   viper.GetInt("listener.http.port"),
-			EnableAudit: viper.GetBool("listener.http.enable_audit"),
-			EnableHealth: viper.GetBool("listener.http.enable_health"),
+			Port:             viper.GetInt("listener.http.port"),
+			EnableAudit:      viper.GetBool("listener.http.enable_audit"),
+			EnableHealth:     viper.GetBool("listener.http.enable_health"),
 			MaxContentLength: viper.GetInt64("listener.http.max_content_length"),
 		},
 			jsondata.NewJsonDataProcessor(jsondata.JsonDataProcessorConfig{}),
 			defaultLedgerWriter,
+			auditWriter,
 		)
 		n.components = append(n.components, p)
 

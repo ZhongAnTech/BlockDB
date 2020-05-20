@@ -13,6 +13,7 @@ import (
 type AuditWriter interface {
 	// receive OG event and write it to the backend storage
 	WriteOGMessage(o *AuditEvent) error
+	GetCollection() *mongo.Collection
 }
 
 type MongoDBAuditWriter struct {
@@ -57,4 +58,8 @@ func (m *MongoDBAuditWriter) createUsersIndex() {
 	if err != nil {
 		logrus.WithError(err).Warn("create index error")
 	}
+}
+
+func (m *MongoDBAuditWriter) GetCollection() *mongo.Collection {
+	return m.coll
 }

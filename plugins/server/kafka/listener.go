@@ -15,7 +15,7 @@ import (
 type KafkaProcessorConfig struct {
 	Topic   string
 	Address string
-	GroupId  string
+	GroupId string
 }
 
 type KafkaListener struct {
@@ -61,11 +61,11 @@ func (k *KafkaListener) Stop() {
 func (k *KafkaListener) doListen() {
 	brokers := strings.Split(k.config.Address, ";")
 	r := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:   brokers,
-		Topic:     k.config.Topic,
-		MinBytes:  1,    // 1B
-		MaxBytes:  10e6, // 10MB,
-		GroupID:k.config.GroupId,
+		Brokers:  brokers,
+		Topic:    k.config.Topic,
+		MinBytes: 1,    // 1B
+		MaxBytes: 10e6, // 10MB,
+		GroupID:  k.config.GroupId,
 	})
 	defer func() {
 		_ = r.Close()
@@ -78,7 +78,7 @@ func (k *KafkaListener) doListen() {
 	//	logrus.WithError(err).Error("cannot set offset to partition")
 	//	return
 	//}
-	logrus.WithField("brokers",brokers).WithField("groupid",k.config.GroupId).WithField("topic", k.config.Topic).Info("kafka  consumer started")
+	logrus.WithField("brokers", brokers).WithField("groupid", k.config.GroupId).WithField("topic", k.config.Topic).Info("kafka  consumer started")
 
 	for !k.stopped {
 		m, err := r.ReadMessage(context.Background())

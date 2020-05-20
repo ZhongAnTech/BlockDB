@@ -7,18 +7,18 @@ import (
 	"sync"
 
 	"github.com/annchain/BlockDB/backends"
+	"github.com/annchain/BlockDB/ogws"
 	"github.com/annchain/BlockDB/processors"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
-
-
 type HttpListenerConfig struct {
-	Port  int
-	EnableAudit  bool
-	EnableHealth bool
-	MaxContentLength  int64
+	Port             int
+	EnableAudit      bool
+	EnableHealth     bool
+	MaxContentLength int64
 }
 
 type HttpListener struct {
@@ -28,30 +28,32 @@ type HttpListener struct {
 
 	wg      sync.WaitGroup
 	stopped bool
-	router *mux.Router
+	router  *mux.Router
+	coll    *mongo.Collection
 }
 
 func (l *HttpListener) Name() string {
 	return "HttpListener"
 }
 
-
-func NewHttpListener(config HttpListenerConfig, dataProcessor processors.DataProcessor, ledgerWriter backends.LedgerWriter) *HttpListener {
+func NewHttpListener(config HttpListenerConfig, dataProcessor processors.DataProcessor, ledgerWriter backends.LedgerWriter, auditWriter ogws.AuditWriter) *HttpListener {
 	if config.MaxContentLength == 0 {
 		config.MaxContentLength = 1e7
 	}
-	l:= &HttpListener{
+	l := &HttpListener{
 		config:        config,
 		ledgerWriter:  ledgerWriter,
 		dataProcessor: dataProcessor,
-		router: mux.NewRouter(),
+		router:        mux.NewRouter(),
+		coll:          auditWriter.GetCollection(),
 	}
 	if l.config.EnableAudit {
 		l.router.Methods("POST").Path("/audit").HandlerFunc(l.Handle)
+		l.router.Methods("GET", "POST").Path("/query").HandlerFunc(l.Query)
+		l.router.Methods("GET", "POST").Path("/queryGrammar").HandlerFunc(l.QueryGrammar)
 	}
-	if l.config.EnableHealth {
-		l.router.Methods("GET", "POST").Path("/health").HandlerFunc(l.Health)
-	}
+	l.router.Methods("GET", "POST").Path("/health").HandlerFunc(l.Health)
+
 	return l
 }
 
@@ -65,42 +67,37 @@ func (l *HttpListener) Stop() {
 	logrus.Info("HttpListener stopped")
 }
 
-
-
-func (l *HttpListener)Handle(rw http.ResponseWriter,req *http.Request) {
+func (l *HttpListener) Handle(rw http.ResponseWriter, req *http.Request) {
 	if req.ContentLength > l.config.MaxContentLength {
-		http.Error(rw,http.StatusText(http.StatusRequestEntityTooLarge),http.StatusRequestEntityTooLarge)
+		http.Error(rw, http.StatusText(http.StatusRequestEntityTooLarge), http.StatusRequestEntityTooLarge)
 		return
 	}
 
-	data,err := ioutil.ReadAll(req.Body)
-	if err!=nil || len(data)==0{
-		http.Error(rw,"miss content",http.StatusBadRequest)
+	data, err := ioutil.ReadAll(req.Body)
+	if err != nil || len(data) == 0 {
+		http.Error(rw, "miss content", http.StatusBadRequest)
 		return
 	}
 
-	events,err  := l.dataProcessor.ParseCommand(data)
-	if err!=nil || len(data)==0{
-		http.Error(rw,err.Error(),http.StatusBadRequest)
+	events, err := l.dataProcessor.ParseCommand(data)
+	if err != nil || len(data) == 0 {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
 	}
 	for _, event := range events {
 		l.ledgerWriter.EnqueueSendToLedger(event)
 	}
-
-    rw.Header().Set("Content-Type", "application/json")
-    rw.WriteHeader(http.StatusOK)
-    rw.Write([]byte("{}"))
-
+	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	rw.Write([]byte("{}"))
 
 }
 
-func (l *HttpListener)Health(rw http.ResponseWriter, req *http.Request) {
+func (l *HttpListener) Health(rw http.ResponseWriter, req *http.Request) {
 	rw.WriteHeader(http.StatusOK)
 	rw.Write([]byte("ok"))
 }
 
-
 func (l *HttpListener) doListen() {
-	logrus.Fatal(http.ListenAndServe(":"+fmt.Sprintf("%d",l.config.Port), l.router))
+	logrus.Fatal(http.ListenAndServe(":"+fmt.Sprintf("%d", l.config.Port), l.router))
 }

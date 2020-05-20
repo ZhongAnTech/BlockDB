@@ -48,8 +48,8 @@ func (s *SocketConnectionProcessor) ProcessConnection(conn net.Conn) error {
 		// query command
 		//fmt.Println(str)
 		//fmt.Println(hex.Dump(bytes))
-		events ,err := s.dataProcessor.ParseCommand([]byte(str))
-		if events == nil || err!=nil{
+		events, err := s.dataProcessor.ParseCommand([]byte(str))
+		if events == nil || err != nil {
 			logrus.WithError(err).Warn("nil command")
 			continue
 		}
