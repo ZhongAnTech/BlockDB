@@ -2,6 +2,8 @@ package ogws
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -27,6 +29,10 @@ func (m *MongoDBAuditWriter) WriteOGMessage(o *AuditEvent) error {
 	if err != nil {
 		return err
 	}
+	var e = &AuditEvent{}
+	err = bson.Unmarshal(bytes, e)
+	out, err := json.MarshalIndent(e, "", "\t")
+	fmt.Println(string(out))
 	_, err = m.coll.InsertOne(ctx, bytes)
 	if err != nil {
 		return err

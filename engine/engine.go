@@ -149,6 +149,5 @@ func (n *Engine) registerComponents() {
 			auditWriter,
 		)
 		n.components = append(n.components, p)
-
 	}
 }
