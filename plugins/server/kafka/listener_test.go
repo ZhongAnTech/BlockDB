@@ -23,7 +23,7 @@ func TestListener(t *testing.T) {
 	config := KafkaProcessorConfig{
 		Topic:   viper.GetString("listener.kafka.topic"),
 		Address: viper.GetString("listener.kafka.address"),
-		GroupId: viper.GetString("istener.kafka.group_id"),
+		GroupId: viper.GetString("listener.kafka.group_id"),
 	}
 	fmt.Println(config)
 	l := NewKafkaListener(config, &jsondata.JsonDataProcessor{}, &ledgerSender{})

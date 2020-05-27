@@ -172,6 +172,7 @@ func (l*HttpListener) queryData(ctx context.Context, filter bson.M ,limit,skip i
 	if err != nil {
 		return nil,err
 	}
+	defer cur.Close(ctx)
 	resp := &AuditDataQueryResponse{
 		Total:count,
 	}
@@ -193,6 +194,11 @@ func (l*HttpListener) queryData(ctx context.Context, filter bson.M ,limit,skip i
 		}
 		o.AuditEvent = event
 		resp.Data = append(resp.Data, o)
+	}
+	err = cur.Err()
+	if err!=nil {
+		logrus.WithError(err).Error("read  err")
+		return nil,err
 	}
 	return resp,nil
 }
