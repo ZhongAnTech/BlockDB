@@ -157,7 +157,10 @@ func (e *Extractor) Write(p []byte) (int, error) {
 	if write {
 		t, _ := json.Marshal(msg)
 		logrus.WithField("ev", string(t)).Warn("log")
-		e.writer.EnqueueSendToLedger(logEvent)
+		err = e.writer.EnqueueSendToLedger(logEvent)
+		if err != nil {
+			logrus.WithError(err).Warn("send to ledger err")
+		}
 	}
 	e.reset()
 

@@ -11,7 +11,6 @@ import (
 	"github.com/annchain/BlockDB/processors"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type HttpListenerConfig struct {
@@ -26,10 +25,10 @@ type HttpListener struct {
 	ledgerWriter  backends.LedgerWriter
 	dataProcessor processors.DataProcessor
 
-	wg      sync.WaitGroup
-	stopped bool
-	router  *mux.Router
-	coll    *mongo.Collection
+	wg          sync.WaitGroup
+	stopped     bool
+	router      *mux.Router
+	auditWriter ogws.AuditWriter
 }
 
 func (l *HttpListener) Name() string {
@@ -45,7 +44,7 @@ func NewHttpListener(config HttpListenerConfig, dataProcessor processors.DataPro
 		ledgerWriter:  ledgerWriter,
 		dataProcessor: dataProcessor,
 		router:        mux.NewRouter(),
-		coll:          auditWriter.GetCollection(),
+		auditWriter:   auditWriter,
 	}
 	if l.config.EnableAudit {
 		l.router.Methods("POST").Path("/audit").HandlerFunc(l.Handle)
@@ -80,12 +79,16 @@ func (l *HttpListener) Handle(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	events, err := l.dataProcessor.ParseCommand(data)
-	if err != nil || len(data) == 0 {
+	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
 	}
 	for _, event := range events {
-		l.ledgerWriter.EnqueueSendToLedger(event)
+		err = l.ledgerWriter.EnqueueSendToLedger(event)
+		if err != nil {
+			logrus.WithError(err).Warn("send to ledger err")
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+		}
 	}
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)

@@ -62,13 +62,20 @@ func (n *Engine) registerComponents() {
 
 	var defaultLedgerWriter backends.LedgerWriter
 
+	auditWriter := ogws.NewMongoDBAuditWriter(
+		viper.GetString("audit.mongodb.connection_string"),
+		viper.GetString("audit.mongodb.database"),
+		viper.GetString("audit.mongodb.collection"),
+	)
+	originalDataProcessor := auditWriter.GetOriginalDataProcessor()
+
 	if viper.GetBool("og.enabled") {
 		url := viper.GetString("og.url")
 		p := og.NewOgProcessor(og.OgProcessorConfig{LedgerUrl: url,
 			IdleConnectionTimeout: time.Second * time.Duration(viper.GetInt("og.idle_connection_seconds")),
 			BufferSize:            viper.GetInt("og.buffer_size"),
 			RetryTimes:            viper.GetInt("og.retry_times"),
-		})
+		}, originalDataProcessor)
 		defaultLedgerWriter = p
 		n.components = append(n.components, p)
 	}
@@ -128,11 +135,6 @@ func (n *Engine) registerComponents() {
 		)
 		n.components = append(n.components, p)
 	}
-	auditWriter := ogws.NewMongoDBAuditWriter(
-		viper.GetString("audit.mongodb.connection_string"),
-		viper.GetString("audit.mongodb.database"),
-		viper.GetString("audit.mongodb.collection"),
-	)
 	if viper.GetBool("og.wsclient.enabled") {
 		w := ogws.NewOGWSClient(viper.GetString("og.wsclient.url"), auditWriter)
 		n.components = append(n.components, w)
