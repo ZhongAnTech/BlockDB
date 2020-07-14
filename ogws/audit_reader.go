@@ -25,10 +25,12 @@ func (l *MongoDBAuditWriter) Query(filter bson.M, limit, skip int64) (resp []Raw
 	}
 	count, err = l.coll.CountDocuments(ctx, filter)
 	if err != nil {
+		logrus.WithError(err).Error("count collection: %s error", l.coll.Name())
 		return
 	}
 	cur, err := l.coll.Find(ctx, filter, &options.FindOptions{Limit: &limit, Skip: &skip, Sort: bson.M{"_id": -1}})
 	if err != nil {
+		logrus.WithError(err).Errorf("find from collection: %s error", l.coll.Name())
 		return
 	}
 	defer cur.Close(ctx)
