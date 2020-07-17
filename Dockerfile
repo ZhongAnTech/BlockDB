@@ -1,4 +1,4 @@
-FROM base-registry.zhonganinfo.com/env/golang:1.13 as builder
+FROM golang:1.12-alpine as builder
 
 ENV GOPROXY https://goproxy.cn
 ENV GO111MODULE on
