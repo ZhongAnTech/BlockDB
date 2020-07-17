@@ -30,7 +30,7 @@ RUN apk add --no-cache curl iotop busybox-extras tzdata
 
 WORKDIR /
 COPY --from=builder /go/src/github.com/annchain/BlockDB/deployment/config.toml .
-COPY --from=builder /go/src/github.com/annchain/BlockDB/build/blockdb .
+COPY --from=builder /go/src/github.com/annchain/BlockDB/blockdb .
 
 # for a temp running folder. This should be mounted from the outside
 RUN mkdir /rw
