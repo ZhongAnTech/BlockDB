@@ -77,6 +77,7 @@ func (l *HttpListener) Handle(rw http.ResponseWriter, req *http.Request) {
 		http.Error(rw, "miss content", http.StatusBadRequest)
 		return
 	}
+	logrus.Tracef("get audit request data: %s", string(data))
 
 	events, err := l.dataProcessor.ParseCommand(data)
 	if err != nil {
@@ -84,12 +85,15 @@ func (l *HttpListener) Handle(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 	for _, event := range events {
+		logrus.Tracef("write event to ledger: %s", event.String())
 		err = l.ledgerWriter.EnqueueSendToLedger(event)
 		if err != nil {
 			logrus.WithError(err).Warn("send to ledger err")
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 		}
 	}
+
+	logrus.Tracef("write to ledger ends, data: %s", events[0].PrimaryKey)
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
 	rw.Write([]byte("{}"))

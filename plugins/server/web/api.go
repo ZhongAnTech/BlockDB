@@ -14,6 +14,8 @@ func (l *HttpListener) Query(rw http.ResponseWriter, req *http.Request) {
 		http.Error(rw, "miss content", http.StatusBadRequest)
 		return
 	}
+
+	logrus.Tracef("get query request data: %s", string(data))
 	var request AuditDataQueryRequest
 	err = json.Unmarshal(data, &request)
 	if err != nil {
@@ -28,12 +30,18 @@ func (l *HttpListener) Query(rw http.ResponseWriter, req *http.Request) {
 		request.PageNum = 10
 	}
 	skip := (request.PageNum - 1) * request.PageSize
+
+	logrus.Tracef("start logging a filter: %v", filter)
+	//for key, value := range filter {
+	//	logrus.Tracef("filter key: %s, value: %v", key, value)
+	//}
 	respData, total, err := l.auditWriter.Query(filter, request.PageSize, skip)
 	if err != nil {
 		logrus.WithError(err).Error("read failed")
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	logrus.Tracef("finished query filter: %v", filter)
 	var resp AuditDataQueryResponse
 	resp.Total = total
 	resp.Data = respData
