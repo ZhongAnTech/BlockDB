@@ -29,8 +29,8 @@ FROM alpine:latest
 RUN apk add --no-cache curl iotop busybox-extras tzdata
 
 WORKDIR /
-COPY --from=builder BlockDB/config.toml .
-COPY --from=builder BlockDB/build/blockdb .
+COPY --from=builder /go/src/github.com/annchain/BlockDB/deployment/config.toml .
+COPY --from=builder /go/src/github.com/annchain/BlockDB/build/blockdb .
 
 # for a temp running folder. This should be mounted from the outside
 RUN mkdir /rw
