@@ -56,3 +56,6 @@ retry_times = 3
 [debug]
     enabled = false
     port = 8091
+
+[log]
+    level = "trace"
