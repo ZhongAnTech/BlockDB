@@ -90,5 +90,6 @@ func (l *HttpListener) Health(rw http.ResponseWriter, req *http.Request) {
 }
 
 func (l *HttpListener) doListen() {
+	logrus.WithField("port", l.Config.Port).Info("RPC server listening")
 	logrus.Fatal(http.ListenAndServe(":"+fmt.Sprintf("%d", l.Config.Port), l.router))
 }

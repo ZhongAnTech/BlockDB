@@ -1,7 +1,8 @@
 package core
 
 import (
-	"github.com/ZhongAnTech/BlockDB/brefactor/plugins/web"
+	"github.com/ZhongAnTech/BlockDB/brefactor/plugins/clients/og"
+	"github.com/ZhongAnTech/BlockDB/brefactor/plugins/listeners/web"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
@@ -41,6 +42,8 @@ func (n *BlockDB) InitDefault() {
 
 func (n *BlockDB) Setup() {
 	// init components.
+
+	// TODO: RPC server to receive http requests. (Wu Jianhang)
 	if viper.GetBool("listener.http.enabled") {
 		p := &web.HttpListener{
 			JsonCommandParser:       &DefaultJsonCommandParser{}, // parse json command
@@ -54,13 +57,26 @@ func (n *BlockDB) Setup() {
 		p.Setup()
 		n.components = append(n.components, p)
 	}
+	// TODO: Command executor (Fang Ning)
+	// CommandExecutor
 
-	// Dependency check on External data storage facilities.
+	// TODO: External data storage facilities. (Dai Yunong)
+	// StorageExecutor
 
-	// Blockchain sender to send new tx consumed from queue.
+	// TODO: Blockchain sender to send new tx consumed from queue. (Ding Qingyun)
+	client := &og.OgClient{
+		Config: og.OgClientConfig{
+			LedgerUrl:  viper.GetString("blockchain.og.url"),
+			RetryTimes: viper.GetInt("blockchain.og.retry_times"),
+		},
+	}
+	client.InitDefault()
+	n.components = append(n.components, client)
 
-	// Websocket server to receive new sequencer messages.
+	// TODO: Sync manager to sync from lastHeight to maxHeight. (Wu Jianhang)
+	// LedgerSyncer
 
-	// RPC server to receive http requests.
+	// TODO: Websocket server to receive new sequencer messages. (Ding Qingyun)
+	// BlockchainListener
 
 }

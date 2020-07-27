@@ -6,3 +6,10 @@
     enabled = true
     port = 8080
     max_content_length = 10000000
+
+[blockchain]
+    [blockchain.og]
+    url="http://nbstock.top:30022/new_archive"
+    idle_connection_seconds = 5
+    buffer_size = 100
+    retry_times = 5
