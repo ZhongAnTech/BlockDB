@@ -14,7 +14,7 @@
 package cmd
 
 import (
-	"fmt"
+	"github.com/ZhongAnTech/BlockDB/brefactor/core"
 	"github.com/annchain/commongo/mylog"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -26,21 +26,12 @@ import (
 // runCmd represents the run command
 var runCmd = &cobra.Command{
 	Use:   "run",
-	Short: "Start BlockDB instance",
+	Short: "Start a BlockDB instance",
 	Long:  `Start a BlockDB instance`,
 	Run: func(cmd *cobra.Command, args []string) {
-		defer func() {
-			if err := recover(); err != nil {
-				fmt.Println(err)
-				panic(err)
-			}
-		}()
 		logrus.Info("BlockDB Starting")
-
 		folderConfigs := ensureFolders()
-
 		readConfig(folderConfigs.Config)
-
 		mylog.InitLogger(logrus.StandardLogger(), mylog.LogConfig{
 			MaxSize:    10,
 			MaxBackups: 100,
@@ -52,8 +43,10 @@ var runCmd = &cobra.Command{
 
 		// init logs and other facilities before the node starts
 
-		//eng := engine.NewEngine()
-		//eng.Start()
+		blockdb := core.BlockDB{}
+		blockdb.InitDefault()
+		blockdb.Setup()
+		blockdb.Start()
 
 		// prevent sudden stop. Do your clean up here
 		var gracefulStop = make(chan os.Signal)
@@ -65,7 +58,7 @@ var runCmd = &cobra.Command{
 			sig := <-gracefulStop
 			logrus.Infof("caught sig: %+v", sig)
 			logrus.Info("Exiting... Please do no kill me")
-			//eng.Stop()
+			blockdb.Stop()
 			os.Exit(0)
 		}()
 

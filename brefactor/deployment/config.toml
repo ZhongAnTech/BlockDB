@@ -1,0 +1,8 @@
+[log]
+    level = "trace"
+
+[listener]
+    [listener.http]
+    enabled = true
+    port = 8080
+    max_content_length = 10000000

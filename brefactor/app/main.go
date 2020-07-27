@@ -15,7 +15,7 @@
 package main
 
 import (
-	"github.com/spf13/cobra/cobra/cmd"
+	"github.com/ZhongAnTech/BlockDB/brefactor/app/cmd"
 	"math/rand"
 	"time"
 )

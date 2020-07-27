@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/annchain/commongo v0.0.0-20200727032342-1c3b4f56a747
+	github.com/gorilla/mux v1.7.4
 	github.com/kr/pretty v0.2.0 // indirect
 	github.com/sirupsen/logrus v1.6.0
 	github.com/spf13/cobra v1.0.0
