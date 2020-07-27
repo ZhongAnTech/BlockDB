@@ -31,7 +31,7 @@
 
 [og]
 enabled = true
-url="http://127.0.0.1:8000/new_archive"
+url="http://nbstock:30025/new_archive"
 #url="http://172.28.152.106:30100/new_archive"
 idle_connection_seconds = 5
 buffer_size = 100
