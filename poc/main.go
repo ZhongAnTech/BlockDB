@@ -2,16 +2,13 @@ package main
 
 import (
 	"bytes"
-	"crypto/ecdsa"
-	"crypto/rand"
-	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"math/big"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/W1llyu/ourjson"
 	"github.com/annchain/OG/common/crypto"
@@ -22,7 +19,7 @@ var (
 )
 
 const (
-	defaultValue         = 1                 /* 缺省转账额 */
+	defaultValue         = 0                 /* 缺省转账额 */
 	defaultData          = ""                /* 缺省数据 */
 	defaultCryptoType    = "secp256k1"       /* 加密类型 */
 	defaultTokenID       = int64(0)          /* 缺省安全令牌 */
@@ -66,6 +63,15 @@ func newAccountReq() *AccountReq {
 	}
 }
 
+func getAddr(ku string) string {
+	pubKey, err := hex.DecodeString(strings.TrimPrefix(ku, "0x"))
+	if err != nil {
+		fmt.Println(err)
+	}
+	hexPubKeyHash := hex.EncodeToString(crypto.Keccak256(pubKey))
+	return "0x" + hexPubKeyHash[len(hexPubKeyHash)-40:]
+}
+
 func newAccount() *Account {
 	// 发送新建账户请求
 	postURL := url + "/" + accountRPCMethod /* 新建账户URL */
@@ -101,38 +107,31 @@ func newAccount() *Account {
 	if err != nil {
 		fmt.Println(err)
 	}
-	// 已知公钥算地址
-	pubKey, err := hex.DecodeString(ku)
-	if err != nil {
-		fmt.Println(err)
-	}
-	hexPubKeyHash := hex.EncodeToString(crypto.Keccak256(pubKey))
-	addr := "0x" + hexPubKeyHash[len(hexPubKeyHash)-40:]
 	return &Account{
 		PublicKey:  ku,
 		PrivateKey: kr,
 		Nonce:      0,
-		Addr:       addr,
+		Addr:       getAddr(ku),
 	}
 }
 
 func newTX(from Account, toAddr string) *TX {
 	// 已知字符串类型私钥算ecdsa.PrivateKey类型私钥
-	priv := new(ecdsa.PrivateKey)
-	priv.PublicKey.Curve = crypto.S256()
-	kr, err := hex.DecodeString(from.PrivateKey)
-	if err != nil {
-		fmt.Println(err)
-	}
-	priv.D = new(big.Int).SetBytes(kr)
-	priv.PublicKey.X, priv.PublicKey.Y = priv.PublicKey.Curve.ScalarBaseMult(kr)
+	// priv := new(ecdsa.PrivateKey)
+	// priv.PublicKey.Curve = elliptic.P256()
+	// kr, err := hex.DecodeString(from.PrivateKey)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+	// priv.D = new(big.Int).SetBytes(kr)
+	// priv.PublicKey.X, priv.PublicKey.Y = priv.PublicKey.Curve.ScalarBaseMult(kr)
 	// 已知私钥算签名
-	hash := sha256.Sum256([]byte(defaultData))
-	r, s, err := ecdsa.Sign(rand.Reader, priv, hash[:])
-	if err != nil {
-		fmt.Println(err)
-	}
-	signature := append(r.Bytes(), s.Bytes()...)
+	// hash := sha256.Sum256([]byte(defaultData))
+	// r, s, err := ecdsa.Sign(rand.Reader, priv, hash[:])
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+	// signature := append(r.Bytes(), s.Bytes()...)
 	return &TX{
 		Nonce:         from.Nonce,
 		FromAddr:      from.Addr,
@@ -140,7 +139,7 @@ func newTX(from Account, toAddr string) *TX {
 		Value:         strconv.Itoa(defaultValue),
 		Data:          defaultData,
 		CryptoType:    defaultCryptoType,
-		Signature:     string(signature),
+		Signature:     "", /* string(signature) */
 		FromPublicKey: from.PublicKey,
 		TokenID:       defaultTokenID,
 	}

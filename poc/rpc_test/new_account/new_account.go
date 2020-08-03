@@ -20,7 +20,7 @@ func newAccountReq() *AccountReq {
 }
 
 func main() {
-	url := "http://localhost:8000/new_account"
+	url := "http://47.100.122.212:30022/new_account"
 	post, err := json.Marshal(newAccountReq())
 	if err != nil {
 		fmt.Println(err)
