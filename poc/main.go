@@ -29,6 +29,9 @@ const (
 	defaultSeed          = ""                /* 缺省随机种子 */
 	accountRPCMethod     = "new_account"     /* 新建账户RPC方法 */
 	transactionRPCMethod = "new_transaction" /* 交易RPC方法 */
+
+	countOfAccounts = 8       /* 账户数目 */
+	maxConcurrency  = 1000000 /* 最大并发数 */
 )
 
 // AccountReq 新建账户请求字段
@@ -167,6 +170,27 @@ func transaction(from Account, toAddr string) string {
 	return string(respBody)
 }
 
+// 我把交易设计成从偶秩账户到它的后缀，这个函数会循环返回0、2、4……、0……
+func nextFromRank(r int) int {
+	if r == countOfAccounts-2 {
+		return 0
+	}
+	return r + 2
+}
+
 func main() {
-	// Do sth.
+	// 新建账户
+	var accounts [countOfAccounts]Account
+	for i := 0; i < countOfAccounts; i++ {
+		accounts[i] = *newAccount()
+	}
+	fromRank := 0
+	// 不同账户之间死循环发送交易请求
+	for {
+		// 相同账户之间并发发送交易请求
+		for i := 0; i < maxConcurrency; i++ {
+			go transaction(accounts[fromRank], accounts[fromRank+1].Addr)
+		}
+		fromRank = nextFromRank(fromRank)
+	}
 }
