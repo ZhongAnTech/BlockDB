@@ -1,12 +1,16 @@
 package web
 
 import (
+	"errors"
 	"fmt"
 	"github.com/ZhongAnTech/BlockDB/brefactor/core_interface"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
+	"github.com/tidwall/gjson"
 	"io/ioutil"
 	"net/http"
+	"sort"
+	"strconv"
 	"sync"
 )
 
@@ -93,3 +97,58 @@ func (l *HttpListener) doListen() {
 	logrus.WithField("port", l.Config.Port).Info("RPC server listening")
 	logrus.Fatal(http.ListenAndServe(":"+fmt.Sprintf("%d", l.Config.Port), l.router))
 }
+
+func Normalize(json string) (error, string) {
+	if !gjson.Valid(json) {
+		return errors.New("invalid json"), ""
+	}
+	result := gjson.Parse(json)
+	value := result.Value()
+	return nil, normalize(value)
+}
+
+func normalize(value interface{}) string {
+	switch value.(type) {
+	default:
+		return ""
+	case map[string]interface{}:
+		v, _ := value.(map[string]interface{})
+		var keys []string
+		for k := range v {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		s := "{"
+		l := len(keys)
+		for index, k := range keys {
+			s += "\"" + k + "\":" + normalize(v[k])
+			if (index != l - 1) {
+				s += ","
+			}
+		}
+		return s + "}"
+	case []interface{}:
+		v, _ := value.([]interface{})
+		s := "["
+		l := len(v)
+		for index, item := range v {
+			s += normalize(item)
+			if (index != l - 1) {
+				s += ","
+			}
+		}
+		return s + "]"
+	case bool:
+		v, _ := value.(bool)
+		return strconv.FormatBool(v)
+	case float64:
+		v, _ := value.(float64)
+		return strconv.FormatFloat(v, 'f', -1, 64)
+	case string:
+		v, _ := value.(string)
+		return "\"" + v + "\""
+	case nil:
+		return "null"
+	}
+}
+
