@@ -14,35 +14,35 @@
 package cmd
 
 import (
-	"fmt"
 	"github.com/annchain/BlockDB/engine"
-	log "github.com/sirupsen/logrus"
+	"github.com/annchain/commongo/mylog"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"sort"
 	"syscall"
 )
 
 // runCmd represents the run command
 var runCmd = &cobra.Command{
 	Use:   "run",
-	Short: "Start a full node",
-	Long:  `Start a full node`,
+	Short: "Start a BlockDB instance",
+	Long:  `Start a BlockDB instance`,
 	Run: func(cmd *cobra.Command, args []string) {
-		defer func() {
-			if err := recover(); err != nil {
-				fmt.Println(err)
-				panic(err)
-			}
-		}()
+		logrus.WithField("pid", os.Getpid()).Info("BlockDB Starting")
+
+		folderConfigs := ensureFolders()
+		readConfig(folderConfigs.Config)
+		mylog.InitLogger(logrus.StandardLogger(), mylog.LogConfig{
+			MaxSize:    10,
+			MaxBackups: 100,
+			MaxAgeDays: 90,
+			Compress:   true,
+			LogDir:     folderConfigs.Log,
+			OutputFile: "blockdb",
+		})
 
 		// init logs and other facilities before the node starts
-		readConfig()
-		initLogger()
-		log.Info("BlockDB Starting")
 		eng := engine.NewEngine()
 		eng.Start()
 
@@ -54,40 +54,13 @@ var runCmd = &cobra.Command{
 
 		func() {
 			sig := <-gracefulStop
-			log.Infof("caught sig: %+v", sig)
-			log.Info("Exiting... Please do no kill me")
+			logrus.Infof("caught sig: %+v", sig)
+			logrus.Info("Exiting... Please do no kill me")
 			eng.Stop()
 			os.Exit(0)
 		}()
 
 	},
-}
-
-func readConfig() {
-	configPath := viper.GetString("config")
-	//datadirPath := viper.GetString("datadir")
-
-	absPath, err := filepath.Abs(configPath)
-	fmt.Println(absPath)
-	panicIfError(err, fmt.Sprintf("Error on parsing config file path: %s", absPath))
-
-	file, err := os.Open(absPath)
-	panicIfError(err, fmt.Sprintf("Error on opening config file: %s", absPath))
-	defer file.Close()
-
-	viper.SetConfigType("toml")
-	err = viper.MergeConfig(file)
-	panicIfError(err, fmt.Sprintf("Error on reading config file: %s", absPath))
-
-	viper.SetEnvPrefix("blockdb")
-	viper.AutomaticEnv() // read in environment variables that match
-
-	keys := viper.AllKeys()
-	sort.Strings(keys)
-	for _, key := range keys {
-		fmt.Printf("%s:%v\n", key, viper.Get(key))
-	}
-
 }
 
 func init() {

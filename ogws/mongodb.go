@@ -44,8 +44,8 @@ func (db *MongoDBDatabase) ConnectMongoDB() {
 	// user Connection database
 
 	// Set client options
-	clientOptions := options.Client().ApplyURI(fmt.Sprintf("%s", db.config.Uri)).SetAuth(options.Credential{
-		AuthMechanism: db.config.AuthMethod,
+	clientOptions := options.Client().ApplyURI(db.config.Uri).SetAuth(options.Credential{
+		//AuthMechanism: db.config.AuthMethod,
 		//AuthMechanismProperties: nil,
 		AuthSource: db.config.Database,
 		Username:   db.config.UserName,
