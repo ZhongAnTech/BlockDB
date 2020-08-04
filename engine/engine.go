@@ -119,11 +119,15 @@ func (n *Engine) registerComponents() {
 	}
 
 	if viper.GetBool("og.wsclient.enabled") {
-		auditWriter := ogws.NewMongoDBAuditWriter(
-			viper.GetString("audit.mongodb.connection_string"),
-			viper.GetString("audit.mongodb.database"),
-			viper.GetString("audit.mongodb.collection"),
-		)
+		db := ogws.NewMongoDBDatabase(ogws.MongoDBConfig{
+			Uri:        viper.GetString("audit.mongodb.uri"),
+			Database:   viper.GetString("audit.mongodb.database"),
+			Collection: viper.GetString("audit.mongodb.collection"),
+			UserName:   viper.GetString("audit.mongodb.username"),
+			Password:   viper.GetString("audit.mongodb.password"),
+			AuthMethod: viper.GetString("audit.mongodb.auth_method"),
+		})
+		auditWriter := ogws.NewMongoDBAuditWriter(db)
 		w := ogws.NewOGWSClient(viper.GetString("og.wsclient.url"), auditWriter)
 		n.components = append(n.components, w)
 	}

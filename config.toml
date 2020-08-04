@@ -25,13 +25,12 @@
 
 [backend]
     [backend.mongodb]
-    # see http://mongodb.github.io/mongo-java-driver/3.6/javadoc/?com/mongodb/ConnectionString.html for full connection parameters
-    connection_string = "mongodb://[username:password@]host1[:port1][,host2[:port2],...[,hostN[:portN]]][/[database.collection][?options]]"
-    url = "172.28.152.101:27017"
+    url = "tech-tst-mongo.zhonganinfo.com:27017"
 
 [og]
 enabled = true
-url="http://nbstock:30025/new_archive"
+url="http://localhost:8000/new_archive"
+#url="http://nbstock:30025/new_archive"
 #url="http://172.28.152.106:30100/new_archive"
 idle_connection_seconds = 5
 buffer_size = 100
@@ -39,10 +38,13 @@ retry_times = 5
 
     [og.wsclient]
     enabled = true
-    url="ws://172.28.152.106:30102/ws"
+    url="ws://localhost:8002/ws"
 
 [audit]
     [audit.mongodb]
-    connection_string = "mongodb://@172.28.152.101:27017"
-    database = "blockDB"
+    uri = "mongodb://tech-tst-mongo.zhonganinfo.com:27017"
+    username = "tech_udpp_backend_tst"
+    password = ""
+    database = "tech_udpp_backend"
     collection = "queryblockdb"
+#    auth_method = "SCRAM-SHA-256"

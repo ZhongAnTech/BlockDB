@@ -135,10 +135,12 @@ func (e *Extractor) Write(p []byte) (int, error) {
 		Identity:   msg.DBUser,
 	}
 
-	data, _ := json.Marshal(logEvent)
-
 	write := true
-	if e.config.IgnoreMetaQuery {
+	if msg.DB == "" || msg.Collection == "" {
+		t, _ := json.Marshal(msg)
+		logrus.WithField("ev", string(t)).Trace("ignore this message")
+		write = false
+	} else if e.config.IgnoreMetaQuery {
 		s := string(p)
 		blacklist := []string{"buildinfo", "getlasterror", "architecture", "dbStats", "saslStart", "saslContinue", "listCollections", "collStats"}
 		if msg.DB == "admin" {
@@ -147,7 +149,7 @@ func (e *Extractor) Write(p []byte) (int, error) {
 			// check blacklist
 			for _, word := range blacklist {
 				if strings.Contains(s, word) {
-					fmt.Println("blacklist event: ", string(data))
+					logrus.WithField("ev", s).Trace("filter this message")
 					write = false
 					break
 				}
@@ -156,7 +158,7 @@ func (e *Extractor) Write(p []byte) (int, error) {
 	}
 	if write {
 		t, _ := json.Marshal(msg)
-		logrus.WithField("ev", string(t)).Warn("log")
+		logrus.WithField("ev", string(t)).Warn("send to ledger")
 		e.writer.EnqueueSendToLedger(logEvent)
 	}
 	e.reset()
