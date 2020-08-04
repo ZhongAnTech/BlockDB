@@ -5,12 +5,15 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/annchain/BlockDB/poc/rpc_test/og"
+	"github.com/annchain/OG/common"
+	"github.com/annchain/OG/common/crypto"
+	"github.com/annchain/OG/common/math"
+	"github.com/annchain/OG/rpc"
+	"github.com/annchain/OG/types"
+	"github.com/annchain/OG/types/tx_types"
 	"io/ioutil"
 	"net/http"
-	"strconv"
-	"strings"
-
-	"github.com/annchain/OG/common/crypto"
 )
 
 // 2个账户的公钥、私钥
@@ -20,21 +23,22 @@ const (
 	privKey1 = "0x01e32e537bd309f0c97ccec33c1d016c3b7e3561760ad574364fdf7ef07fc876ac"
 	pubKey1  = "0x010442bd7bd58f46c2c3b5d69d20227c30a8dd937306122722b170c935cbb0319e170cd4af39f3f4e51abbe5910a24925153567cda2961768e99951cfbecd4e489af"
 
-	url                  = "http://47.100.122.212:30022" /* 远程RPC调试 */
-	defaultValue         = 0                             /* 缺省转账额 */
-	defaultData          = ""                            /* 缺省数据 */
-	defaultCryptoType    = "secp256k1"                   /* 加密类型 */
-	defaultTokenID       = int64(0)                      /* 缺省安全令牌 */
-	transactionRPCMethod = "new_transaction"             /* 交易RPC方法 */
+	url                  = "http://localhost:8000" /* 远程RPC调试 */
+	defaultValue         = 0                       /* 缺省转账额 */
+	defaultData          = ""                      /* 缺省数据 */
+	defaultCryptoType    = "secp256k1"             /* 加密类型 */
+	defaultTokenID       = int64(0)                /* 缺省安全令牌 */
+	transactionRPCMethod = "new_transaction"       /* 交易RPC方法 */
+	nonceMethod          = "query_nonce"
 )
 
-// Account 账户字段
-type Account struct {
-	PublicKey  string /* 公钥，十六进制字符串类型 */
-	PrivateKey string /* 私钥，十六进制字符串类型 */
-	Nonce      int64  /* 账户发出交易次数 */
-	Addr       string /* 地址，十六进制字符串类型 */
-}
+//// Account 账户字段
+//type Account struct {
+//	PublicKey  string /* 公钥，十六进制字符串类型 */
+//	PrivateKey string /* 私钥，十六进制字符串类型 */
+//	Nonce      int64  /* 账户发出交易次数 */
+//	Addr       string /* 地址，十六进制字符串类型 */
+//}
 
 // TX 交易字段
 type TX struct {
@@ -49,37 +53,64 @@ type TX struct {
 	TokenID       int64  `json:"token_id"`    /* 安全令牌 */
 }
 
-func getAddr(ku string) string {
-	pubKey, err := hex.DecodeString(strings.TrimPrefix(ku, "0x"))
+func newTX(from *og.SampleAccount, to *og.SampleAccount) *rpc.NewTxRequest {
+	signer := crypto.NewSigner(from.PrivateKey.Type)
+
+	// TODO 签名，query nonce
+	// consume nonce
+	nonce, err := from.ConsumeNonce()
 	if err != nil {
-		fmt.Println(err)
+		panic(err)
 	}
-	hexPubKeyHash := hex.EncodeToString(crypto.Keccak256(pubKey))
-	return "0x" + hexPubKeyHash[len(hexPubKeyHash)-40:]
+
+	// This is an OG Tx to show what signature target is.
+	// No need to send all stuff to OG.
+	tx := tx_types.Tx{
+		TxBase: types.TxBase{
+			Type:         0,
+			Hash:         common.Hash{},
+			ParentsHash:  nil,
+			AccountNonce: nonce,
+			Height:       0,
+			PublicKey:    nil,
+			Signature:    nil,
+			MineNonce:    0,
+			Weight:       0,
+			Version:      0,
+		},
+		From:    &from.Address,
+		To:      to.Address,
+		Value:   math.NewBigInt(0),
+		TokenId: 0,
+		Data:    nil,
+	}
+
+	fmt.Println(hex.EncodeToString(tx.SignatureTargets()))
+	fmt.Println(hex.EncodeToString(from.PublicKey.Bytes))
+	sig := signer.Sign(from.PrivateKey, tx.SignatureTargets())
+
+	// This is an OG rpc Tx to show what should be sent to OG.
+	return &rpc.NewTxRequest{
+		Nonce:      nonce,
+		From:       from.Address.String(),
+		To:         to.Address.String(),
+		Value:      "0",
+		Data:       "=",
+		CryptoType: defaultCryptoType,
+		Signature:  hex.EncodeToString(sig.Bytes),
+		Pubkey:     hex.EncodeToString(from.PublicKey.Bytes),
+		TokenId:    0,
+	}
 }
 
-func newTX(from Account, toAddr string) *TX {
-	// TODO 签名
-	return &TX{
-		Nonce:         from.Nonce,
-		FromAddr:      from.Addr,
-		ToAddr:        toAddr,
-		Value:         strconv.Itoa(defaultValue),
-		Data:          defaultData,
-		CryptoType:    defaultCryptoType,
-		Signature:     "",
-		FromPublicKey: from.PublicKey,
-		TokenID:       defaultTokenID,
-	}
-}
-
-func transaction(from Account, toAddr string) string {
+func transaction(from *og.SampleAccount, to *og.SampleAccount) string {
 	postURL := url + "/" + transactionRPCMethod /* 新交易URL */
-	post, err := json.Marshal(newTX(from, toAddr))
+	post, err := json.Marshal(newTX(from, to))
 	if err != nil {
 		fmt.Println(err)
 	}
 	postBuffer := bytes.NewBuffer(post)
+	fmt.Println(postBuffer.String())
 	req, err := http.NewRequest("POST", postURL, postBuffer)
 	if err != nil {
 		fmt.Println(err)
@@ -93,20 +124,48 @@ func transaction(from Account, toAddr string) string {
 	if err != nil {
 		fmt.Println(err)
 	}
-	from.Nonce++
 	return string(respBody)
 }
 
+type NonceResponse struct {
+	Nonce uint64 `json:"data"`
+	Err   string `json:"err"`
+}
+
+func updateNonce(account *og.SampleAccount) uint64 {
+	postURL := url + "/" + nonceMethod /* 新交易URL */
+
+	req, err := http.NewRequest("GET", postURL+"?address="+account.Address.String(), nil)
+	if err != nil {
+		fmt.Println(err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer resp.Body.Close()
+	respBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(string(respBody))
+	nr := &NonceResponse{}
+	err = json.Unmarshal(respBody, nr)
+	if err != nil {
+		print(err)
+	}
+	if nr.Err != "" {
+		print(nr.Err)
+	}
+	account.SetNonce(nr.Nonce)
+	return nr.Nonce
+}
+
 func main() {
-	account0 := new(Account)
-	account0.PublicKey = pubKey0
-	account0.PrivateKey = privKey0
-	account0.Nonce = 0
-	account0.Addr = getAddr(pubKey0)
-	account1 := new(Account)
-	account1.PublicKey = pubKey1
-	account1.PrivateKey = privKey1
-	account1.Nonce = 0
-	account1.Addr = getAddr(pubKey1)
-	fmt.Println(transaction(*account0, account0.Addr))
+	account0 := og.NewAccount(privKey0)
+	account1 := og.NewAccount(privKey1)
+
+	updateNonce(account0)
+	// update nonce first.
+	fmt.Println("result " + transaction(account0, account1))
 }
