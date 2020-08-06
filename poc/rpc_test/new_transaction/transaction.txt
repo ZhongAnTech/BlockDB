@@ -1,2 +1,0 @@
-{"data":null,"err":"signature format error"}
-
