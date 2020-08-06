@@ -4,6 +4,7 @@ go 1.12
 
 require (
 	github.com/DataDog/zstd v1.4.1 // indirect
+	github.com/W1llyu/ourjson v0.0.0-20180613080540-341d4810db86 // indirect
 	github.com/annchain/OG v0.0.5
 	github.com/frankban/quicktest v1.4.1 // indirect
 	github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8

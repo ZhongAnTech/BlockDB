@@ -16,7 +16,7 @@ type SampleAccount struct {
 	Address     common.Address
 	nonce       atomic.Uint64
 	nonceInited bool
-	mu          sync.RWMutex
+	mutex       sync.RWMutex
 }
 
 // NewAccount 新建账户
@@ -35,8 +35,8 @@ func NewAccount(privateKeyHex string) *SampleAccount {
 
 // ConsumeNonce 消费nonce
 func (s *SampleAccount) ConsumeNonce() (uint64, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	if !s.nonceInited {
 		return 0, fmt.Errorf("nonce is not initialized. Query first")
 	}
@@ -46,8 +46,8 @@ func (s *SampleAccount) ConsumeNonce() (uint64, error) {
 
 // SetNonce 人为初始化nonce
 func (s *SampleAccount) SetNonce(lastUsedNonce uint64) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	s.nonce.Store(lastUsedNonce)
 	s.nonceInited = true
 }
