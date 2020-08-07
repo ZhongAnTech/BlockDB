@@ -64,19 +64,19 @@ func (l *HttpListener) Handle(rw http.ResponseWriter, req *http.Request) {
 	}
 	logrus.Tracef("get audit request data: %s", string(data))
 
-	command, err := l.JsonCommandParser.FromJson(string(data))
-
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
-		return
-	}
-	result, err := l.BlockDBCommandProcessor.Process(command)
-	if err != nil {
-		logrus.WithError(err).Warn("failed to process command")
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
-	}
-
-	logrus.WithField("result", result).Info("process result")
+	//command, err := l.JsonCommandParser.FromJson(string(data))
+	//
+	//if err != nil {
+	//	http.Error(rw, err.Error(), http.StatusBadRequest)
+	//	return
+	//}
+	//result, err := l.BlockDBCommandProcessor.Process(command)
+	//if err != nil {
+	//	logrus.WithError(err).Warn("failed to process command")
+	//	http.Error(rw, err.Error(), http.StatusInternalServerError)
+	//}
+	//
+	//logrus.WithField("result", result).Info("process result")
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
 	rw.Write([]byte("{}")) // TODO: write result of BlockDBCommandProcessor.Process
