@@ -5,7 +5,6 @@ import (
 
 	"github.com/annchain/BlockDB/ogws"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type AuditDataQueryRequest struct {
@@ -53,17 +52,11 @@ func (request *AuditDataQueryRequest) ToFilter() bson.M {
 	userId := request.Identity
 	filter := bson.M{}
 	if request.Ip != "" {
-		filter["data.ip"] = bson.M{"$regex": primitive.Regex{
-			Pattern: request.Ip,
-			Options: "i",
-		}}
+		filter["data.ip"] = request.Ip
 	}
 
 	if request.PrimaryKey != "" {
-		filter["data.primarykey"] = bson.M{"$regex": primitive.Regex{
-			Pattern: request.PrimaryKey,
-			Options: "i",
-		}}
+		filter["data.primarykey"] = request.PrimaryKey
 	}
 
 	if str := strings.Split(request.Timestamp, ";"); len(str) == 2 {
@@ -72,16 +65,10 @@ func (request *AuditDataQueryRequest) ToFilter() bson.M {
 			"$lt":  str[1],
 		}
 	} else if request.Timestamp != "" {
-		filter["data.timestamp"] = bson.M{"$regex": primitive.Regex{
-			Pattern: request.Timestamp,
-			Options: "i",
-		}}
+		filter["data.timestamp"] = request.Timestamp
 	}
 	if request.Type != "" {
-		filter["data.type"] = bson.M{"$regex": primitive.Regex{
-			Pattern: request.Type,
-			Options: "i",
-		}}
+		filter["data.type"] = request.Type
 	}
 	if userId != "" {
 		filter["data.identity"] = userId
