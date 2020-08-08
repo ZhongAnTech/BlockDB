@@ -1,8 +1,7 @@
 package web
 
 import (
-	"errors"
-	"github.com/tidwall/gjson"
+	"encoding/json"
 	"sort"
 	"strconv"
 )
@@ -47,13 +46,11 @@ type arrayOrMapResult struct {
 	vc byte
 }
 
-func Normalize(json string) (string, error) {
-	if !gjson.Valid(json) {
-		return "", errors.New("invalid json")
-	}
-	result := Parse(json)
+// This function expects that the json is well-formed.
+func Normalize(data string) (string) {
+	result := Parse(data)
 	value := result.Value()
-	return normalize(value), nil
+	return normalize(value)
 }
 
 func normalize(value interface{}) string {
@@ -419,4 +416,16 @@ func squash(json string) string {
 		}
 	}
 	return json
+}
+
+// isBatch returns true when the first non-whitespace characters is '['
+func isBatch(raw json.RawMessage) bool {
+	for _, c := range raw {
+		// skip insignificant whitespace (http://www.ietf.org/rfc/rfc4627.txt)
+		if c == 0x20 || c == 0x09 || c == 0x0a || c == 0x0d {
+			continue
+		}
+		return c == '['
+	}
+	return false
 }

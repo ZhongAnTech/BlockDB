@@ -1,9 +1,13 @@
 package web
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"github.com/ZhongAnTech/BlockDB/brefactor/core_interface"
 	"github.com/gorilla/mux"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
@@ -23,6 +27,12 @@ type HttpListener struct {
 	wg      sync.WaitGroup
 	stopped bool
 	router  *mux.Router
+}
+
+type Message struct {
+	Data json.RawMessage `json:"data"`
+	PublicKey string `json:"public_key"`
+	Signature string `json:"signature"`
 }
 
 func (l *HttpListener) Name() string {
@@ -57,13 +67,46 @@ func (l *HttpListener) Handle(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	data, err := ioutil.ReadAll(req.Body)
-	if err != nil || len(data) == 0 {
+	msg, err := ioutil.ReadAll(req.Body)
+	if err != nil || len(msg) == 0 {
 		http.Error(rw, "miss content", http.StatusBadRequest)
 		return
 	}
-	logrus.Tracef("get audit request data: %s", string(data))
 
+	var message Message
+	err = json.Unmarshal(msg, &message)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	pubKeyBytes, err := hex.DecodeString(message.PublicKey)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	pubKey, err := crypto.UnmarshalSecp256k1PublicKey(pubKeyBytes)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	signatureBytes, err := hex.DecodeString(message.Signature)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	data := Normalize(string(message.Data))
+	hash := sha256.Sum256([]byte(data))
+	isSuccess, err :=pubKey.Verify(hash[:], signatureBytes)
+	if err != nil || !isSuccess {
+		http.Error(rw, "invalid signature.", http.StatusBadRequest)
+		return
+	}
+
+	//logrus.Tracef("get audit request data: %s", string(data))
 	//command, err := l.JsonCommandParser.FromJson(string(data))
 	//
 	//if err != nil {

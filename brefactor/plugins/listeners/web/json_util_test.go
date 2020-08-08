@@ -1,7 +1,7 @@
 package web
 
 import (
-	"github.com/tidwall/gjson"
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -32,15 +32,9 @@ func TestNormalize(t *testing.T) {
 	  "children": ["Sara","Alex","Jack"]
 	}`
 
-	n1, err := Normalize(json1)
-	if err != nil {
-		t.Error(err, ": Cannot normalize json1.")
-	}
-	n2, err := Normalize(json2)
-	if err != nil {
-		t.Error(err, ": Cannot normalize json2.")
-	}
-	if !gjson.Valid(n1) {
+	n1 := Normalize(json1)
+	n2 := Normalize(json2)
+	if !json.Valid([]byte(n1)) {
 		t.Error("Normalize function work incorrectly.")
 	}
 	if strings.Compare(n1, n2) != 0 {
