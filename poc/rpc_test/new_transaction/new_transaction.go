@@ -27,36 +27,55 @@ const (
 	privKey0 = "0x01a03846356c336844979e7972916b9b045071a57e532457576dd65e89952d9154"
 	privKey1 = "0x01e32e537bd309f0c97ccec33c1d016c3b7e3561760ad574364fdf7ef07fc876ac"
 
-	url                       = "http://47.100.122.212:30022" /* 远程RPC调试 */
-	defaultValue              = "0"                           /* 缺省转账额 */
-	defaultData               = "="                           /* 缺省交易数据 */
-	defaultCryptoType         = "secp256k1"                   /* 缺省加密类型 */
-	defaultTokenID            = 0                             /* 缺省安全令牌 */
-	newTransactionRPCMethod   = "new_transaction"             /* 新建交易RPC方法 */
-	queryNonceRPCMethod       = "query_nonce"                 /* 查询nonceRPC方法 */
-	queryTransactionRPCMethod = "transaction"                 /* 查询交易是否上链 */
+	url               = "http://47.100.122.212:30022" /* 远程RPC调试 */
+	defaultValue      = "0"                           /* 缺省转账额 */
+	defaultData       = "="                           /* 缺省交易数据 */
+	defaultCryptoType = "secp256k1"                   /* 缺省加密类型 */
+	defaultTokenID    = 0                             /* 缺省安全令牌 */
+
+	newTransactionRPCMethod    = "new_transaction" /* 新建交易RPC方法 */
+	queryNonceRPCMethod        = "query_nonce"     /* 查询nonceRPC方法 */
+	queryTransactionRPCMethod  = "transaction"     /* 查询单笔交易RPC方法 */
+	queryTransactionsRPCMethod = "Transactions"    /* 查询多笔交易RPC方法 */
+	querySequencerRPCMethod    = "sequencer"       /* 查询区块信息RPC方法 */
 
 	countOfTXPerCoroutine = 10 /* 每个协程发送的交易数目 */
-	countOfCoroutine      = 3  /* 协程数目 */
-)
-
-var (
-	wg        sync.WaitGroup /* 协程等待组 */
-	txHashes  chan string    /* 交易哈希 */
-	heightMin uint64         /* 记录交易哈希区块的最小高度 */
-	heightMax uint64         /* 记录交易哈希区块的最大高度 */
+	countOfCoroutine      = 6  /* 协程数目 */
 )
 
 // NonceResponse 更新nonce的回复消息
 type NonceResponse struct {
-	Nonce uint64 `json:"data"`
-	Err   string `json:"err"`
+	Nonce uint64 `json:"data"` /* nonce */
+	Err   string `json:"err"`  /* 错误 */
 }
 
 // TXResponse 交易回复消息
 type TXResponse struct {
-	Data string `json:"data"`
-	Err  string `json:"err"`
+	Data string `json:"data"` /* 哈希 */
+	Err  string `json:"err"`  /* 错误 */
+}
+
+// TXInfo 交易信息
+type TXInfo struct {
+	Hash     string /* 哈希 */
+	InitTime int    /* 新建时间时间戳 */
+}
+
+var (
+	wg                sync.WaitGroup /* 协程等待组 */
+	tx                chan TXInfo    /* 交易哈希 */
+	timestampOfHeight map[int]int    /* 键：区块高度，值：时间戳 */
+	heightMin         int            /* 交易最小高度 */
+	heightMax         int            /* 交易最大高度 */
+	initFlag          bool           /* 交易最小、最大高度是否被初始化 */
+)
+
+// NewTXInfo 新建交易信息
+func NewTXInfo(hash string, timestamp int) *TXInfo {
+	return &TXInfo{
+		Hash:     hash,
+		InitTime: timestamp,
+	}
 }
 
 // UpdateNonce 更新nonce，跟链同步
@@ -153,8 +172,52 @@ func TX(from *og.SampleAccount, to *og.SampleAccount) []byte {
 	return respBody
 }
 
-// QueryTX 查询交易是否上链
-func QueryTX(hash string) bool {
+// QuerySequencerTimestamp 查询指定高度区块时间戳
+func QuerySequencerTimestamp(height int) int {
+	timestamp, ok := timestampOfHeight[height]
+	if ok {
+		return timestamp
+	}
+	getURL := url + "/" + querySequencerRPCMethod
+	req, err := http.NewRequest("GET", getURL+"?seq_id="+strconv.Itoa(height), nil)
+	if err != nil {
+		fmt.Println(err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer resp.Body.Close()
+	respBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println(err)
+	}
+	jsonObj, err := ourjson.ParseObject(string(respBody))
+	if err != nil {
+		fmt.Println(err)
+	}
+	data := jsonObj.GetJsonObject("data")
+	timestamp, err = data.GetInt("Timestamp")
+	if err != nil {
+		fmt.Println(err)
+	}
+	timestampOfHeight[height] = timestamp
+	if !initFlag {
+		heightMin = height
+		heightMax = height
+	} else {
+		if height < heightMin {
+			heightMin = height
+		}
+		if height > heightMax {
+			heightMax = height
+		}
+	}
+	return timestamp
+}
+
+// QueryTX 查询交易相关信息，返回是否上链、区块时间戳
+func QueryTX(hash string) (bool, int) {
 	getURL := url + "/" + queryTransactionRPCMethod
 	req, err := http.NewRequest("GET", getURL+"?hash="+hash, nil)
 	if err != nil {
@@ -173,26 +236,48 @@ func QueryTX(hash string) bool {
 	if err != nil {
 		fmt.Println(err)
 	}
-	data := jsonObj.GetJsonObject("data")
 	errStr, err := jsonObj.GetString("err")
 	if err != nil {
 		fmt.Println(err)
 	}
 	if errStr != "" {
-		return false /* 未上链，JSON报错 */
+		return false, 0 /* 未上链，JSON报错 */
 	}
+	data := jsonObj.GetJsonObject("data")
 	transaction := data.GetJsonObject("transaction")
-	height, err := transaction.GetInt64("height")
+	height, err := transaction.GetInt("height")
 	if err != nil {
 		fmt.Println(err)
 	}
-	if uint64(height) < heightMin {
-		heightMin = uint64(height)
+	return true, QuerySequencerTimestamp(height)
+}
+
+// QueryCountOfTX 查询指定高度区块交易数目
+func QueryCountOfTX(height int) int {
+	getURL := url + "/" + queryTransactionsRPCMethod
+	req, err := http.NewRequest("GET", getURL+"?seq_id="+strconv.Itoa(height), nil)
+	if err != nil {
+		fmt.Println(err)
 	}
-	if uint64(height) > heightMax {
-		heightMax = uint64(height)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Println(err)
 	}
-	return true
+	defer resp.Body.Close()
+	respBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println(err)
+	}
+	jsonObj, err := ourjson.ParseObject(string(respBody))
+	if err != nil {
+		fmt.Println(err)
+	}
+	data := jsonObj.GetJsonObject("data")
+	total, err := data.GetInt("total")
+	if err != nil {
+		fmt.Println(err)
+	}
+	return total
 }
 
 // 每个协程的任务
@@ -210,19 +295,20 @@ func handle(from *og.SampleAccount, to *og.SampleAccount) {
 		}
 		if tr.Data != "" {
 			hash := strings.TrimPrefix(tr.Data, "0x")
-			txHashes <- hash
+			tx <- *NewTXInfo(hash, int(time.Now().UnixNano()/1e6))
 			fmt.Println("TX\t" + hash)
 		}
 	}
 }
 
+// 每秒交易数、上链延迟、上链成功率、查询延迟，并发查询性能
 func main() {
 	account0 := og.NewAccount(privKey0)
 	account1 := og.NewAccount(privKey1)
 	UpdateNonce(account0)
-	txHashes = make(chan string, countOfTXPerCoroutine*countOfCoroutine)
-	heightMin = ^uint64(0) /* 最大uint64类型数 */
-	heightMax = uint64(0)  /* 最小uint64类型数 */
+	tx = make(chan TXInfo, countOfTXPerCoroutine*countOfCoroutine)
+	timestampOfHeight = make(map[int]int)
+	initFlag = false
 	for i := 0; i < countOfCoroutine; i++ {
 		wg.Add(1)
 		go handle(account0, account1)
@@ -230,13 +316,29 @@ func main() {
 	wg.Wait()
 	fmt.Println("Wait 1 min...")
 	time.Sleep(time.Minute * 1)
-	countOfTXSucceeded := 0
-	len := len(txHashes)
+
+	countOfTXSucceeded := 0 /* 上链成功数 */
+	delaySum := 0           /* 上链延迟总和，单位：毫秒 */
+	len := len(tx)
 	for i := 0; i < len; i++ {
-		if QueryTX(<-txHashes) {
+		txInfo := <-tx
+		ok, timestamp := QueryTX(txInfo.Hash)
+		if ok {
 			countOfTXSucceeded++
+			delaySum += (timestamp - txInfo.InitTime)
 		}
 	}
+	count := 0
+	if heightMax-heightMin > 1 /* 交易至少完全填充了1个区块，可以计算TPS */ {
+		for i := heightMin + 1; i < heightMax; i++ {
+			count += QueryCountOfTX(i)
+		}
+		tps := int(float64(count*1000)/float64(timestampOfHeight[heightMax-1]-timestampOfHeight[heightMin]) + 0.5) /* 四舍五入转换成整型数 */
+		fmt.Println("TPS:" + strconv.Itoa(tps))
+	} else {
+		fmt.Println("TPS: -")
+	}
+	fmt.Println("Average delay:" + strconv.Itoa(delaySum/countOfTXSucceeded) + "ms")
 	fmt.Println("Total number of TX:" + strconv.Itoa(countOfTXPerCoroutine*countOfCoroutine))
 	fmt.Println("Succeeded number of TX:" + strconv.Itoa(countOfTXSucceeded))
 }
