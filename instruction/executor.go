@@ -48,11 +48,12 @@ func Execute(op int,instruction string){
 		//TODO: Verification of signature
 		//权限验证
 		if Check(op,com.Collection,com.PublicKey){
-			if UpdateCollectionFeatures(com.Collection,com.Feature){
+			ok,curColl:=UpdateCollectionFeatures(com.Collection,com.Feature)
+			if ok{
 				com.Timestamp=timestamp
 				OpRecord(op,com.Hash,com.Collection,timestamp,com.Feature,com.PublicKey,com.Signature)
 				//TODO: Insert(CollIndexDataBase,com.Collection,com)
-				HistoryRecord(com.Hash,com.Collection,timestamp,com.Feature,com.PublicKey,com.Signature)
+				HistoryRecord(com.Hash,com.Collection,timestamp,curColl.Feature,com.PublicKey,com.Signature)
 				Audit(op,com.Hash,com.Collection,timestamp,com.Feature,com.PublicKey,com.Signature)
 			}else {
 				log.Println("collection "+com.Collection+" doesn't exist.")
@@ -102,8 +103,7 @@ func Execute(op int,instruction string){
 			data["unset"]=com.Unset
 			OpRecord(op,hash,com.Collection,timestamp,data,com.PublicKey,com.Signature)
 			//TODO: Update(BlockDataBase,com.Collection,com)
-			//TODO: history
-			//审计记录
+			//TODO: Update(HistoryDataBase,HistoryCollection,com)
 			Audit(op,hash,com.Collection,timestamp,data,com.PublicKey,com.Signature)
 		}else{
 			log.Println("update permission denied")
@@ -123,10 +123,9 @@ func Execute(op int,instruction string){
 			hash:=com.Query["_hash"]
 			data:=make(map[string]interface{})
 			data["query"]=com.Query
-			//TODO: op records
 			OpRecord(op,hash,com.Collection,timestamp,data,com.PublicKey,com.Signature)
 			//TODO: delete(BlockDataBase,com.Collection,com)
-			//TODO: history
+			//TODO: delete(HistoryDataBase,HistoryCollection,com)
 			Audit(op,hash,com.Collection,timestamp,data,com.PublicKey,com.Signature)
 		}else{
 			log.Println("delete permission denied")
@@ -142,14 +141,13 @@ func Execute(op int,instruction string){
 		}
 		//TODO: Verification of signature
 		com.Timestamp=timestamp
-		//TODO: op records
 		data:=make(map[string]interface{})
 		data["index"] = com.Index
 		OpRecord(op,"",com.Collection,timestamp,data,com.PublicKey,com.Signature)
 		Indexes=append(Indexes,com)
 		//TODO: CreateIndex(BlockDataBase,com.Collection,com.Index)
-		//TODO: history
-		//TODO: audit
+		HistoryRecord("",com.Collection,timestamp,data,com.PublicKey,com.Signature)
+		Audit(op,"",com.Collection,timestamp,data,com.PublicKey,com.Signature)
 
 	case DropIndex:
 		com:=&BlockDBCommandIndex{}
@@ -159,12 +157,19 @@ func Execute(op int,instruction string){
 			break
 		}
 		//TODO: Verification of signature
-		com.Timestamp=timestamp
-		//TODO: op records
-		//TODO: DropIndex(BlockDataBase,com.Collection,com.Index)
-		//TODO: history
-		//TODO: audit
-
+		ok,index:=UpdateCollectionIndex(com.Collection,com.Index)
+		if ok{
+			com.Timestamp=timestamp
+			data:=make(map[string]interface{})
+			data["index"] = com.Index
+			OpRecord(op,"",com.Collection,timestamp,data,com.PublicKey,com.Signature)
+			Audit(op,"",com.Collection,timestamp,data,com.PublicKey,com.Signature)
+			//TODO: DropIndex(BlockDataBase,com.Collection,com.Index)
+			data["index"]=index.Index
+			HistoryRecord("",com.Collection,timestamp,data,com.PublicKey,com.Signature)
+		}else{
+			log.Println("drop index failed.")
+		}
 	}
 }
 
@@ -229,14 +234,33 @@ outside:
 }
 
 //更新Coll
-func UpdateCollectionFeatures(collection string,feature map[string]interface{}) bool{
+func UpdateCollectionFeatures(collection string,feature map[string]interface{}) (bool,BlockDBCommandCollection){
 	flag := false
-	for _,coll := range Colls{
-		if coll.Collection == collection{
-			coll.Feature = feature
-			flag=true
+	var curColl BlockDBCommandCollection
+	for _,curColl = range Colls{
+		if curColl.Collection == collection{
+			for k:=range feature{
+				curColl.Feature[k]=feature[k]
+				flag=true
+			}
 			break
 		}
 	}
-	return flag
+	return flag,curColl
+}
+
+//更新Indexes
+func UpdateCollectionIndex(collection string,index map[string]string)(bool,BlockDBCommandIndex){
+	flag:=false
+	var curIndex BlockDBCommandIndex
+	for _,curIndex=range Indexes{
+		if curIndex.Collection == collection{
+			for k:=range index{
+				delete(curIndex.Index,k)
+				flag=true
+			}
+			break
+		}
+	}
+	return flag,curIndex
 }
