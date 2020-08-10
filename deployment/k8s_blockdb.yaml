@@ -25,6 +25,8 @@ spec:
               value: "ws://ogblockdb-service.production:8002/ws"
             - name: BLOCKDB_AUDIT.MONGODB.CONNECTION_STRING
               value: "mongodb://blockdb:wjs123@mongo-service.production:27017"
+            - name: BLOCKDB_LOG.LOG_DIR
+              value: "/rw/log/"
             - name: TZ
               value: "Asia/Shanghai"
           ports:
