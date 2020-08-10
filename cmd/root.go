@@ -17,7 +17,7 @@ package cmd
 import (
 	"bytes"
 	"fmt"
-	"github.com/annchain/BlockDB/mylog"
+	"github.com/annchain/commongo/mylog"
 	"github.com/rifflock/lfshook"
 	"io"
 	"io/ioutil"
@@ -34,6 +34,7 @@ import (
 )
 
 var cfgFile string
+var logConfig mylog.LogConfig
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -48,7 +49,6 @@ var rootCmd = &cobra.Command{
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	defer DumpStack()
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -63,7 +63,7 @@ func DumpStack() {
 		buf.WriteString(fmt.Sprintf("Panic: %v\n", err))
 		buf.Write(stack)
 		dumpName := "dump_" + time.Now().Format("20060102-150405")
-		nerr := ioutil.WriteFile(dumpName, buf.Bytes(), 0644)
+		nerr := ioutil.WriteFile(path.Join(logConfig.LogDir, dumpName), buf.Bytes(), 0644)
 		if nerr != nil {
 			fmt.Println("write dump file error", nerr)
 			fmt.Println(buf.String())
@@ -97,6 +97,9 @@ func init() {
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+
+	// child commands
+	rootCmd.AddCommand(runCmd)
 }
 
 // initConfig reads in config file
@@ -134,6 +137,14 @@ func panicIfError(err error, message string) {
 func initLogger() {
 	logdir := viper.GetString("log.log_dir")
 	stdout := viper.GetBool("log_stdout")
+	logConfig = mylog.LogConfig{
+		MaxSize:    10,
+		MaxBackups: 100,
+		MaxAgeDays: 90,
+		Compress:   true,
+		LogDir:     logdir,
+		OutputFile: "blockdb",
+	}
 
 	var writer io.Writer
 
@@ -155,7 +166,7 @@ func initLogger() {
 			writer = io.MultiWriter(os.Stdout, logFile)
 		} else {
 			fmt.Println("Will be logged to ", abspath+".log")
-			writer = mylog.RotateLog(abspath)
+			writer = mylog.RotateLog(abspath, logConfig)
 		}
 	} else {
 		// stdout only
@@ -214,14 +225,15 @@ func initLogger() {
 		infoLog, _ := filepath.Abs(path.Join(logdir, "info"))
 		debugLog, _ := filepath.Abs(path.Join(logdir, "debug"))
 		traceLog, _ := filepath.Abs(path.Join(logdir, "trace"))
+
 		writerMap := lfshook.WriterMap{
-			logrus.PanicLevel: mylog.RotateLog(panicLog),
-			logrus.FatalLevel: mylog.RotateLog(fatalLog),
-			logrus.WarnLevel:  mylog.RotateLog(warnLog),
-			logrus.ErrorLevel: mylog.RotateLog(errorLog),
-			logrus.InfoLevel:  mylog.RotateLog(infoLog),
-			logrus.DebugLevel: mylog.RotateLog(debugLog),
-			logrus.TraceLevel: mylog.RotateLog(traceLog),
+			logrus.PanicLevel: mylog.RotateLog(panicLog, logConfig),
+			logrus.FatalLevel: mylog.RotateLog(fatalLog, logConfig),
+			logrus.WarnLevel:  mylog.RotateLog(warnLog, logConfig),
+			logrus.ErrorLevel: mylog.RotateLog(errorLog, logConfig),
+			logrus.InfoLevel:  mylog.RotateLog(infoLog, logConfig),
+			logrus.DebugLevel: mylog.RotateLog(debugLog, logConfig),
+			logrus.TraceLevel: mylog.RotateLog(traceLog, logConfig),
 		}
 		logrus.AddHook(lfshook.NewHook(
 			writerMap,

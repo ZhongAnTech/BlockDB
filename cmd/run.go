@@ -32,16 +32,11 @@ var runCmd = &cobra.Command{
 	Short: "Start a full node",
 	Long:  `Start a full node`,
 	Run: func(cmd *cobra.Command, args []string) {
-		defer func() {
-			if err := recover(); err != nil {
-				fmt.Println(err)
-				panic(err)
-			}
-		}()
-
 		// init logs and other facilities before the node starts
 		readConfig()
 		initLogger()
+		defer DumpStack()
+
 		log.Info("BlockDB Starting")
 		eng := engine.NewEngine()
 		eng.Start()
@@ -87,18 +82,4 @@ func readConfig() {
 		fmt.Printf("%s:%v\n", key, viper.Get(key))
 	}
 
-}
-
-func init() {
-	rootCmd.AddCommand(runCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// runCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// runCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
