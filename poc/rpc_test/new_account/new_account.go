@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/W1llyu/ourjson"
 )
 
 // AccountReq 新建账户请求字段
@@ -39,5 +41,14 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println(string(respBody[:]))
+	jsonObj, err := ourjson.ParseObject(string(respBody[:]))
+	if err != nil {
+		fmt.Println(err)
+	}
+	data := jsonObj.GetJsonObject("data")
+	kr, err := data.GetString("privkey")
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(kr)
 }

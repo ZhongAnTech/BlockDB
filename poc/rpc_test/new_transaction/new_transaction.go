@@ -23,25 +23,33 @@ import (
 )
 
 const (
-	// 2个账户的私钥
-	privKey0 = "0x01a03846356c336844979e7972916b9b045071a57e532457576dd65e89952d9154"
-	privKey1 = "0x01e32e537bd309f0c97ccec33c1d016c3b7e3561760ad574364fdf7ef07fc876ac"
-
 	url               = "http://47.100.122.212:30022" /* 远程RPC调试 */
 	defaultValue      = "0"                           /* 缺省转账额 */
 	defaultData       = "="                           /* 缺省交易数据 */
 	defaultCryptoType = "secp256k1"                   /* 缺省加密类型 */
 	defaultTokenID    = 0                             /* 缺省安全令牌 */
 
-	newTransactionRPCMethod    = "new_transaction" /* 新建交易RPC方法 */
-	queryNonceRPCMethod        = "query_nonce"     /* 查询nonceRPC方法 */
-	queryTransactionRPCMethod  = "transaction"     /* 查询单笔交易RPC方法 */
-	queryTransactionsRPCMethod = "Transactions"    /* 查询多笔交易RPC方法 */
-	querySequencerRPCMethod    = "sequencer"       /* 查询区块信息RPC方法 */
+	newAccountRPCMethod        = "new_account"        /* 新建账户RPC方法 */
+	newTransactionRPCMethod    = "new_transaction"    /* 新建交易RPC方法 */
+	queryNonceRPCMethod        = "query_nonce"        /* 查询nonceRPC方法 */
+	queryTransactionRPCMethod  = "transaction"        /* 查询单笔交易RPC方法 */
+	queryTransactionsRPCMethod = "transaction_hashes" /* 查询多笔交易RPC方法 */
+	querySequencerRPCMethod    = "sequencer"          /* 查询区块信息RPC方法 */
 
-	countOfTXPerCoroutine = 10 /* 每个协程发送的交易数目 */
-	countOfCoroutine      = 6  /* 协程数目 */
+	countOfTXPerCoroutine = 10  /* 每个协程发送的交易数目 */
+	countOfCoroutine      = 100 /* 协程数目 */
 )
+
+// AccountReq 新建账户请求
+type AccountReq struct {
+	Algorithm string `json:"algorithm"` /* 加密算法 */
+}
+
+// AccountPair 账户对
+type AccountPair struct {
+	From *og.SampleAccount /* 发送账户 */
+	To   *og.SampleAccount /* 接收账户 */
+}
 
 // NonceResponse 更新nonce的回复消息
 type NonceResponse struct {
@@ -62,6 +70,7 @@ type TXInfo struct {
 }
 
 var (
+	accountPairs      []AccountPair  /* 账户对 */
 	wg                sync.WaitGroup /* 协程等待组 */
 	tx                chan TXInfo    /* 交易哈希 */
 	timestampOfHeight map[int]int    /* 键：区块高度，值：时间戳 */
@@ -70,12 +79,68 @@ var (
 	initFlag          bool           /* 交易最小、最大高度是否被初始化 */
 )
 
+// NewAccountReq 新建账户请求
+func NewAccountReq() *AccountReq {
+	return &AccountReq{
+		Algorithm: "secp256k1",
+	}
+}
+
+// NewAccountPair 新建账户对
+func NewAccountPair(fromPrivKey string, toPrivKey string) *AccountPair {
+	return &AccountPair{
+		From: og.NewAccount(fromPrivKey),
+		To:   og.NewAccount(toPrivKey),
+	}
+}
+
 // NewTXInfo 新建交易信息
 func NewTXInfo(hash string, timestamp int) *TXInfo {
 	return &TXInfo{
 		Hash:     hash,
 		InitTime: timestamp,
 	}
+}
+
+// NewAccount 新建账户，返回私钥
+func NewAccount() string {
+	postURL := url + "/" + newAccountRPCMethod
+	post, err := json.Marshal(NewAccountReq())
+	if err != nil {
+		fmt.Println(err)
+	}
+	postBuffer := bytes.NewBuffer(post)
+	req, err := http.NewRequest("POST", postURL, postBuffer)
+	if err != nil {
+		fmt.Println(err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer resp.Body.Close()
+	respBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println(err)
+	}
+	jsonObj, err := ourjson.ParseObject(string(respBody[:]))
+	if err != nil {
+		fmt.Println(err)
+	}
+	errStr, err := jsonObj.GetString("err")
+	if err != nil {
+		fmt.Println(err)
+	}
+	if errStr != "" {
+		fmt.Println(errStr)
+		return ""
+	}
+	data := jsonObj.GetJsonObject("data")
+	kr, err := data.GetString("privkey")
+	if err != nil {
+		fmt.Println(err)
+	}
+	return kr
 }
 
 // UpdateNonce 更新nonce，跟链同步
@@ -205,6 +270,7 @@ func QuerySequencerTimestamp(height int) int {
 	if !initFlag {
 		heightMin = height
 		heightMax = height
+		initFlag = true
 	} else {
 		if height < heightMin {
 			heightMin = height
@@ -255,7 +321,7 @@ func QueryTX(hash string) (bool, int) {
 // QueryCountOfTX 查询指定高度区块交易数目
 func QueryCountOfTX(height int) int {
 	getURL := url + "/" + queryTransactionsRPCMethod
-	req, err := http.NewRequest("GET", getURL+"?seq_id="+strconv.Itoa(height), nil)
+	req, err := http.NewRequest("GET", getURL+"?height="+strconv.Itoa(height), nil)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -273,11 +339,11 @@ func QueryCountOfTX(height int) int {
 		fmt.Println(err)
 	}
 	data := jsonObj.GetJsonObject("data")
-	total, err := data.GetInt("total")
+	txHashes := data.GetJsonArray("hashes")
 	if err != nil {
 		fmt.Println(err)
 	}
-	return total
+	return len(txHashes.Values())
 }
 
 // 每个协程的任务
@@ -303,15 +369,17 @@ func handle(from *og.SampleAccount, to *og.SampleAccount) {
 
 // 每秒交易数、上链延迟、上链成功率、查询延迟，并发查询性能
 func main() {
-	account0 := og.NewAccount(privKey0)
-	account1 := og.NewAccount(privKey1)
-	UpdateNonce(account0)
+	accountPairs = make([]AccountPair, countOfCoroutine)
+	for i := 0; i < countOfCoroutine; i++ {
+		accountPairs[i] = *NewAccountPair(NewAccount(), NewAccount())
+		UpdateNonce(accountPairs[i].From)
+	}
 	tx = make(chan TXInfo, countOfTXPerCoroutine*countOfCoroutine)
 	timestampOfHeight = make(map[int]int)
 	initFlag = false
 	for i := 0; i < countOfCoroutine; i++ {
 		wg.Add(1)
-		go handle(account0, account1)
+		go handle(accountPairs[i].From, accountPairs[i].To)
 	}
 	wg.Wait()
 	fmt.Println("Wait 1 min...")
@@ -319,13 +387,17 @@ func main() {
 
 	countOfTXSucceeded := 0 /* 上链成功数 */
 	delaySum := 0           /* 上链延迟总和，单位：毫秒 */
+	delayNum := 0
 	len := len(tx)
 	for i := 0; i < len; i++ {
 		txInfo := <-tx
 		ok, timestamp := QueryTX(txInfo.Hash)
 		if ok {
 			countOfTXSucceeded++
-			delaySum += (timestamp - txInfo.InitTime)
+			if timestamp >= txInfo.InitTime {
+				delaySum += (timestamp - txInfo.InitTime)
+				delayNum++
+			}
 		}
 	}
 	count := 0
@@ -333,12 +405,12 @@ func main() {
 		for i := heightMin + 1; i < heightMax; i++ {
 			count += QueryCountOfTX(i)
 		}
-		tps := int(float64(count*1000)/float64(timestampOfHeight[heightMax-1]-timestampOfHeight[heightMin]) + 0.5) /* 四舍五入转换成整型数 */
-		fmt.Println("TPS:" + strconv.Itoa(tps))
+		tps := float64(count*1000) / float64(QuerySequencerTimestamp(heightMax-1)-QuerySequencerTimestamp(heightMin))
+		fmt.Println(tps)
 	} else {
 		fmt.Println("TPS: -")
 	}
-	fmt.Println("Average delay:" + strconv.Itoa(delaySum/countOfTXSucceeded) + "ms")
+	fmt.Println("Average delay:" + strconv.Itoa(delaySum/delayNum) + "ms")
 	fmt.Println("Total number of TX:" + strconv.Itoa(countOfTXPerCoroutine*countOfCoroutine))
 	fmt.Println("Succeeded number of TX:" + strconv.Itoa(countOfTXSucceeded))
 }

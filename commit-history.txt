@@ -19,3 +19,9 @@
 2020-08-09-1
 1.  获得每秒交易数和上链延迟。
 2.  有时抛错：“new tx failed: failed to seal tx”。
+
+2020-08-12-1
+1.  自动生成账户对，每个交易协程对应1个账户对。
+2.  某些区块时间戳查询结果是0，原因未知。
+3.  修改了函数QueryCountOfTX（查询指定高度区块交易数目）的实现，使用RPC方法"transaction_hashes"间接查询。
+4.  抛错“new tx failed: failed to seal tx”频率下降，未解决。
