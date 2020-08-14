@@ -30,7 +30,7 @@ type HttpListener struct {
 }
 
 type Message struct {
-	Data json.RawMessage `json:"data"`
+	OpStr json.RawMessage `json:"op_str"`
 	PublicKey string `json:"public_key"`
 	Signature string `json:"signature"`
 }
@@ -98,9 +98,9 @@ func (l *HttpListener) Handle(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	data := Normalize(string(message.Data))
+	data := Normalize(string(message.OpStr))
 	hash := sha256.Sum256([]byte(data))
-	isSuccess, err :=pubKey.Verify(hash[:], signatureBytes)
+	isSuccess, err := pubKey.Verify(hash[:], signatureBytes)
 	if err != nil || !isSuccess {
 		http.Error(rw, "invalid signature.", http.StatusBadRequest)
 		return

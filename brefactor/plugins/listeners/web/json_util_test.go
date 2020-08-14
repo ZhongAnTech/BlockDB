@@ -2,6 +2,7 @@ package web
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -34,6 +35,7 @@ func TestNormalize(t *testing.T) {
 
 	n1 := Normalize(json1)
 	n2 := Normalize(json2)
+	fmt.Println(n1)
 	if !json.Valid([]byte(n1)) {
 		t.Error("Normalize function work incorrectly.")
 	}

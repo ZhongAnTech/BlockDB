@@ -1,7 +1,6 @@
 package web
 
 import (
-	"encoding/json"
 	"sort"
 	"strconv"
 )
@@ -419,7 +418,7 @@ func squash(json string) string {
 }
 
 // isBatch returns true when the first non-whitespace characters is '['
-func isBatch(raw json.RawMessage) bool {
+func isBatch(raw []byte) bool {
 	for _, c := range raw {
 		// skip insignificant whitespace (http://www.ietf.org/rfc/rfc4627.txt)
 		if c == 0x20 || c == 0x09 || c == 0x0a || c == 0x0d {
