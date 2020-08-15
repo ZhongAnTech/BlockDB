@@ -1,5 +1,9 @@
 package processors
 
+import (
+	"encoding/json"
+)
+
 type LogEvent struct {
 	Identity   string      `json:"identity"`
 	Type       string      `json:"type"`
@@ -9,4 +13,9 @@ type LogEvent struct {
 	Data       interface{} `json:"data"`
 	Before     string      `json:"before"`
 	After      string      `json:"after"`
+}
+
+func (e *LogEvent) String() string {
+	b, _ := json.Marshal(e)
+	return string(b)
 }

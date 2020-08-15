@@ -1,27 +1,34 @@
 [listener]
     [listener.mongodb]
-    enabled = true
+    enabled = false
     incoming_port = 28017
     incoming_max_connection = 10
     idle_connection_seconds = 30
     ignore_meta_query = true
 
     [listener.log4j2Socket]
-    enabled = true
+    enabled = false
     incoming_port = 28018
     incoming_max_connection = 10
     idle_connection_seconds = 30
 
     [listener.jsonSocket]
-    enabled = true
+    enabled = false
     incoming_port = 28019
     incoming_max_connection = 10
     idle_connection_seconds = 30
 
     [listener.kafka]
-    enabled = true
+    enabled = false
     address = "10.253.11.192:9092"
     topic = "tech-tech-anlink-web-gateway-201907101551"
+
+    [listener.http]
+    enabled = true
+    port = 8080
+    enable_audit = true
+    enable_health = true
+    max_content_length = 10000000
 
 [backend]
     [backend.mongodb]
@@ -38,11 +45,17 @@ buffer_size = 100
 retry_times = 3
 
     [og.wsclient]
-    enabled = true
+    enabled = false
     url="ws://172.28.152.106:30102/ws"
 
 [audit]
     [audit.mongodb]
-    connection_string = "mongodb://@172.28.152.101:27017"
+    connection_string = "mongodb://@172.28.152.101:30052"
     database = "blockDB"
     collection = "queryblockdb"
+[debug]
+    enabled = false
+    port = 8091
+
+[log]
+    level = "trace"

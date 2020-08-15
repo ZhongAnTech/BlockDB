@@ -1,6 +1,11 @@
 package engine
 
 import (
+	"fmt"
+	"net/http"
+	_ "net/http/pprof"
+	"time"
+
 	"github.com/annchain/BlockDB/backends"
 	"github.com/annchain/BlockDB/listener"
 	"github.com/annchain/BlockDB/multiplexer"
@@ -11,9 +16,9 @@ import (
 	"github.com/annchain/BlockDB/plugins/server/log4j2"
 	"github.com/annchain/BlockDB/plugins/server/mongodb"
 	"github.com/annchain/BlockDB/plugins/server/socket"
+	"github.com/annchain/BlockDB/plugins/server/web"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"time"
 )
 
 type Engine struct {
@@ -34,6 +39,11 @@ func (n *Engine) Start() {
 		logrus.Infof("Started: %s", component.Name())
 
 	}
+	if viper.GetBool("debug.enabled") {
+		port := viper.GetInt("debug.port")
+		go logrus.Fatal(http.ListenAndServe("localhost:"+fmt.Sprintf("%d", port), nil))
+	}
+
 	logrus.Info("BlockDB Engine Started")
 }
 
@@ -52,13 +62,20 @@ func (n *Engine) registerComponents() {
 
 	var defaultLedgerWriter backends.LedgerWriter
 
+	auditWriter := ogws.NewMongoDBAuditWriter(
+		viper.GetString("audit.mongodb.connection_string"),
+		viper.GetString("audit.mongodb.database"),
+		viper.GetString("audit.mongodb.collection"),
+	)
+	originalDataProcessor := auditWriter.GetOriginalDataProcessor()
+
 	if viper.GetBool("og.enabled") {
 		url := viper.GetString("og.url")
 		p := og.NewOgProcessor(og.OgProcessorConfig{LedgerUrl: url,
 			IdleConnectionTimeout: time.Second * time.Duration(viper.GetInt("og.idle_connection_seconds")),
 			BufferSize:            viper.GetInt("og.buffer_size"),
 			RetryTimes:            viper.GetInt("og.retry_times"),
-		})
+		}, originalDataProcessor)
 		defaultLedgerWriter = p
 		n.components = append(n.components, p)
 	}
@@ -111,24 +128,28 @@ func (n *Engine) registerComponents() {
 		p := kafka.NewKafkaListener(kafka.KafkaProcessorConfig{
 			Topic:   viper.GetString("listener.kafka.topic"),
 			Address: viper.GetString("listener.kafka.address"),
+			GroupId: viper.GetString("listener.kafka.group_id"),
 		},
 			jsondata.NewJsonDataProcessor(jsondata.JsonDataProcessorConfig{}),
 			defaultLedgerWriter,
 		)
 		n.components = append(n.components, p)
 	}
-
 	if viper.GetBool("og.wsclient.enabled") {
-		db := ogws.NewMongoDBDatabase(ogws.MongoDBConfig{
-			Uri:        viper.GetString("audit.mongodb.uri"),
-			Database:   viper.GetString("audit.mongodb.database"),
-			Collection: viper.GetString("audit.mongodb.collection"),
-			UserName:   viper.GetString("audit.mongodb.username"),
-			Password:   viper.GetString("audit.mongodb.password"),
-			AuthMethod: viper.GetString("audit.mongodb.auth_method"),
-		})
-		auditWriter := ogws.NewMongoDBAuditWriter(db)
 		w := ogws.NewOGWSClient(viper.GetString("og.wsclient.url"), auditWriter)
 		n.components = append(n.components, w)
+	}
+	if viper.GetBool("listener.http.enabled") {
+		p := web.NewHttpListener(web.HttpListenerConfig{
+			Port:             viper.GetInt("listener.http.port"),
+			EnableAudit:      viper.GetBool("listener.http.enable_audit"),
+			EnableHealth:     viper.GetBool("listener.http.enable_health"),
+			MaxContentLength: viper.GetInt64("listener.http.max_content_length"),
+		},
+			jsondata.NewJsonDataProcessor(jsondata.JsonDataProcessorConfig{}),
+			defaultLedgerWriter,
+			auditWriter,
+		)
+		n.components = append(n.components, p)
 	}
 }

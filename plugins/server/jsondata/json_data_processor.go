@@ -28,11 +28,11 @@ func (m *JsonDataProcessor) Stop() {
 	logrus.Info("JsonDataProcessor stopped")
 }
 
-func (m *JsonDataProcessor) ParseCommand(bytes []byte) []*processors.LogEvent {
+func (m *JsonDataProcessor) ParseCommand(bytes []byte) (events []*processors.LogEvent, err error) {
 	var c processors.LogEvent
 	if err := json.Unmarshal(bytes, &c); err != nil {
 		logrus.WithError(err).Warn("bad format")
-		return nil
+		return nil, err
 	}
 
 	if c.Type == "" {
@@ -41,6 +41,6 @@ func (m *JsonDataProcessor) ParseCommand(bytes []byte) []*processors.LogEvent {
 	if c.Timestamp == 0 {
 		c.Timestamp = time.Now().UnixNano() / 1e6
 	}
-	return []*processors.LogEvent{&c}
+	return []*processors.LogEvent{&c}, nil
 
 }

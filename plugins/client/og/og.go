@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/annchain/BlockDB/ogws"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
@@ -13,10 +14,12 @@ import (
 )
 
 type OgProcessor struct {
-	config     OgProcessorConfig
-	dataChan   chan interface{}
-	quit       chan bool
-	httpClient *http.Client
+	config                OgProcessorConfig
+	dataChan              chan *msgEvent
+	quit                  chan bool
+	quitFetch             chan bool
+	httpClient            *http.Client
+	originalDataProcessor ogws.OriginalDataProcessor
 }
 type OgProcessorConfig struct {
 	IdleConnectionTimeout time.Duration
@@ -25,8 +28,14 @@ type OgProcessorConfig struct {
 	RetryTimes            int
 }
 
+type msgEvent struct {
+	callbackChan chan error
+	data         interface{}
+}
+
 func (m *OgProcessor) Stop() {
 	m.quit <- true
+	m.quitFetch<-true
 }
 
 func (m *OgProcessor) Start() {
@@ -39,16 +48,17 @@ func (m *OgProcessor) Name() string {
 	return "OgProcessor"
 }
 
-func NewOgProcessor(config OgProcessorConfig) *OgProcessor {
+func NewOgProcessor(config OgProcessorConfig, originalDataProcessor ogws.OriginalDataProcessor) *OgProcessor {
 	_, err := url.Parse(config.LedgerUrl)
 	if err != nil {
 		panic(err)
 	}
 	return &OgProcessor{
-		config:     config,
-		dataChan:   make(chan interface{}, config.BufferSize),
-		quit:       make(chan bool),
-		httpClient: createHTTPClient(),
+		config:                config,
+		dataChan:              make(chan *msgEvent, config.BufferSize),
+		quit:                  make(chan bool),
+		httpClient:            createHTTPClient(),
+		originalDataProcessor: originalDataProcessor,
 	}
 }
 
@@ -64,15 +74,22 @@ func createHTTPClient() *http.Client {
 	return client
 }
 
-func (o *OgProcessor) EnqueueSendToLedger(data interface{}) {
-	o.dataChan <- data
-	//resData, err := o.sendToLedger(data)
+func (o *OgProcessor) EnqueueSendToLedger(data interface{}) error {
+	me := &msgEvent{
+		callbackChan: make(chan error),
+		data:         data,
+	}
 
-	//if err != nil {
-	//	logrus.WithError(err).Warn("send data to og failed")
-	//	return
-	//}
-	//logrus.WithField("res ", resData).Debug("got response")
+	o.dataChan <- me
+
+	// waiting for callback
+	select {
+	case err := <-me.callbackChan:
+		if err != nil {
+			return err
+		}
+		return nil
+	}
 }
 
 func (o *OgProcessor) ConsumeQueue() {
@@ -80,20 +97,32 @@ outside:
 	for {
 		logrus.WithField("size", len(o.dataChan)).Debug("og queue size")
 		select {
-		case data := <-o.dataChan:
+		case event := <-o.dataChan:
 			retry := 0
+			var resData interface{}
+			var err error
 			for ; retry < o.config.RetryTimes; retry++ {
-				resData, err := o.sendToLedger(data)
+				resData, err = o.sendToLedger(event.data)
 				if err != nil {
+					logrus.WithField("retry", retry).WithError(err).Warnf("failed to send to ledger")
+				} else if resData == nil {
+					err = fmt.Errorf("response is nil")
 					logrus.WithField("retry", retry).WithError(err).Warnf("failed to send to ledger")
 				} else {
 					logrus.WithField("response", resData).Debug("got response")
+					err = o.originalDataProcessor.InsertOne(fmt.Sprintf("%v", resData), event.data)
+					if err != nil {
+						logrus.WithField("response", resData).Error("write data err")
+					}
 					break
 				}
 			}
 			if retry == o.config.RetryTimes {
-				logrus.WithField("data", data).Error("failed to send data to ledger. Abandon.")
+				err = fmt.Errorf("failed to send data to ledger. Abandon. %v", err)
+				logrus.WithField("data", event.data).Error("failed to send data to ledger. Abandon.")
 			}
+			event.callbackChan <- err
+
 		case <-o.quit:
 			break outside
 		}
@@ -156,8 +185,8 @@ func (o *OgProcessor) sendToLedger(data interface{}) (resData interface{}, err e
 	var respj Response
 	err = json.Unmarshal(body, &respj)
 	if err != nil {
-		logrus.WithField("response ",string(body)).WithError(err).Warnf(
-			"got error from og , status %d ,%s ",response.StatusCode,response.Status)
+		logrus.WithField("response ", string(body)).WithError(err).Warnf(
+			"got error from og , status %d ,%s ", response.StatusCode, response.Status)
 		return respj, err
 	}
 	if respj.Message != "" {

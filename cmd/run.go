@@ -14,35 +14,30 @@
 package cmd
 
 import (
+	"fmt"
 	"github.com/annchain/BlockDB/engine"
-	"github.com/annchain/commongo/mylog"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"sort"
 	"syscall"
 )
 
 // runCmd represents the run command
 var runCmd = &cobra.Command{
 	Use:   "run",
-	Short: "Start a BlockDB instance",
-	Long:  `Start a BlockDB instance`,
+	Short: "Start a full node",
+	Long:  `Start a full node`,
 	Run: func(cmd *cobra.Command, args []string) {
-		logrus.WithField("pid", os.Getpid()).Info("BlockDB Starting")
-
-		folderConfigs := ensureFolders()
-		readConfig(folderConfigs.Config)
-		mylog.InitLogger(logrus.StandardLogger(), mylog.LogConfig{
-			MaxSize:    10,
-			MaxBackups: 100,
-			MaxAgeDays: 90,
-			Compress:   true,
-			LogDir:     folderConfigs.Log,
-			OutputFile: "blockdb",
-		})
-
 		// init logs and other facilities before the node starts
+		readConfig()
+		initLogger()
+		defer DumpStack()
+
+		log.Info("BlockDB Starting")
 		eng := engine.NewEngine()
 		eng.Start()
 
@@ -54,8 +49,8 @@ var runCmd = &cobra.Command{
 
 		func() {
 			sig := <-gracefulStop
-			logrus.Infof("caught sig: %+v", sig)
-			logrus.Info("Exiting... Please do no kill me")
+			log.Infof("caught sig: %+v", sig)
+			log.Info("Exiting... Please do no kill me")
 			eng.Stop()
 			os.Exit(0)
 		}()
@@ -63,17 +58,28 @@ var runCmd = &cobra.Command{
 	},
 }
 
-func init() {
-	rootCmd.AddCommand(runCmd)
-	// ./mongodb run -c config.toml
+func readConfig() {
+	configPath := viper.GetString("config")
 
-	// Here you will define your flags and configuration settings.
+	absPath, err := filepath.Abs(configPath)
+	fmt.Println(absPath)
+	panicIfError(err, fmt.Sprintf("Error on parsing config file path: %s", absPath))
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// runCmd.PersistentFlags().String("foo", "", "A help for foo")
+	file, err := os.Open(absPath)
+	panicIfError(err, fmt.Sprintf("Error on opening config file: %s", absPath))
+	defer file.Close()
 
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// runCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	viper.SetConfigType("toml")
+	err = viper.MergeConfig(file)
+	panicIfError(err, fmt.Sprintf("Error on reading config file: %s", absPath))
+
+	viper.SetEnvPrefix("blockdb")
+	viper.AutomaticEnv() // read in environment variables that match
+
+	keys := viper.AllKeys()
+	sort.Strings(keys)
+	for _, key := range keys {
+		fmt.Printf("%s:%v\n", key, viper.Get(key))
+	}
+
 }

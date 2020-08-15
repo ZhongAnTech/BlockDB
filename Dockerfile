@@ -1,10 +1,19 @@
-# Build OG from alpine based golang environment
-FROM golang:1.12-alpine as builder
+FROM golang:1.13-alpine as builder
 
 RUN apk add --no-cache make gcc musl-dev linux-headers git
 
-ENV GOPROXY https://goproxy.io
+ENV GOPROXY https://goproxy.cn
 ENV GO111MODULE on
+
+#ADD . /BlockDB
+#WORKDIR /BlockDB
+#RUN make blockdb
+#
+#
+#FROM alpine:latest
+#WORKDIR /
+#COPY --from=builder BlockDB/config.toml .
+#COPY --from=builder BlockDB/build/blockdb .
 
 WORKDIR /go/src/github.com/annchain/BlockDB
 COPY go.mod .
@@ -19,17 +28,12 @@ FROM alpine:latest
 
 RUN apk add --no-cache curl iotop busybox-extras tzdata
 
-COPY --from=builder /go/src/github.com/annchain/BlockDB/deployment/config.toml /opt/config.toml
-COPY --from=builder /go/src/github.com/annchain/BlockDB/build/blockdb /opt/
+WORKDIR /
+COPY --from=builder /go/src/github.com/annchain/BlockDB/deployment/config.toml .
+COPY --from=builder /go/src/github.com/annchain/BlockDB/blockdb .
 
 # for a temp running folder. This should be mounted from the outside
 RUN mkdir /rw
 
-EXPOSE 28017 28018 28019
-
-WORKDIR /opt
-
-CMD ["./blockdb", "--config", "/opt/config.toml", "--multifile_by_level", "--log_line_number", "--log_dir", "/rw/log/", "--datadir", "/rw/datadir", "run"]
-
-
-
+EXPOSE 28017 28018 28019 8080
+CMD ["./blockdb", "--config", "config.toml", "-n", "run"]
