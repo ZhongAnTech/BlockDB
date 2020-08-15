@@ -85,7 +85,7 @@ func TX(from *Account, to *Account) []byte {
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println("TX Sent!")
+	fmt.Println("A new transaction sent.")
 	return respBody
 }
 

@@ -55,6 +55,9 @@ func (q *Queryer) querySequencerTimestamp(height int) int {
 	if err != nil {
 		fmt.Println(err)
 	}
+	if timestamp == 0 /* Annchain.OG存在区块时间戳是零的故障，暂时用上个区块的时间戳替代 */ {
+		timestamp = q.querySequencerTimestamp(height - 1)
+	}
 	q.timestampOfHeight[height] = timestamp
 	return timestamp
 }
