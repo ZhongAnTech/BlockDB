@@ -51,5 +51,4 @@ func TestMgo(t *testing.T) {
 	if err != nil {
 		t.Error("fail to delete: ", err)
 	}
-
 }

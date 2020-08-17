@@ -48,8 +48,8 @@ type Mgo struct {
 type Response struct {
 	Content []string
 }
-func  InitMgo(url string, database string, collections []string) Mgo{
-	mgo:=Mgo{
+func InitMgo(url string, database string, collections []string) *Mgo{
+	mgo:= &Mgo{
 		collections: make(map[string]*mongo.Collection),
 	}
 	clientOptions:= options.Client().ApplyURI(url)
