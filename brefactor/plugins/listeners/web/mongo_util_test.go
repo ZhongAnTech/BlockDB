@@ -5,11 +5,6 @@ import (
 	"testing"
 )
 
-type User struct {
-	Name string
-	Pwd string
-}
-
 func TestMgo(t *testing.T) {
 	mgo:= InitMgo("mongodb://localhost:27017","test",[]string{"coll", "coll1"})
 	hex1, err:=mgo.Insert("coll", bson.D{{"a","1"},{"b","abc"}})

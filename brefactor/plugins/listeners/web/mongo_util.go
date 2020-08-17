@@ -63,7 +63,7 @@ func InitMgo(url string, database string, collections []string) *Mgo{
 	}
 
 	mgo.database = client.Database(database)
-	for _, collection := range(collections) {
+	for _, collection := range collections {
 		mgo.collections[collection] = mgo.database.Collection(collection)
 	}
 
