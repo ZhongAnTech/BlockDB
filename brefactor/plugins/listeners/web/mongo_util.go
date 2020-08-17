@@ -13,9 +13,9 @@ import (
 
 type storageUtil interface {
 	//m：插入的json对应对bson形式；返回插入成功后的主键id
-	Insert(val bson.D) (string, error)
+	Insert(collection string, val bson.D) (string, error)
 	//在collect中删除主键id为hash
-	Delete(hash string)(int64,error)
+	Delete(collection string, hash string)(int64,error)
 	/**
 	filter:筛选条件 为空：则表示全取
 	sort:排序条件 为空：则表示不排序
@@ -23,20 +23,20 @@ type storageUtil interface {
 	skip:跳过skip条文档 为0：则表示逐条取
 	skip+limit：跳过skip个文档后，取limit个文档
 	*/
-	Select(filter bson.D,sort bson.D,limit int64,skip int64)(Response,error)
+	Select(collection string, filter bson.D,sort bson.D,limit int64,skip int64)(Response,error)
 	//在collect中查找主键id为hash的文档
-	SelectById(hash string)(Response,error)
+	SelectById(collection string, hash string)(Response,error)
 	//将filter更新为update
-	Update(filter, update bson.D,operation string)(int64,error)
+	Update(collection string, filter, update bson.D,operation string)(int64,error)
 	//返回该collect对应的数据库大小、索引大小、文档个数、索引个数
 	CollectInfor(collection string)(interface{})
 	//创建collection 返回创建失败的错误信息；成功则返回nil
 	CreateCollection(collection string) error
 	//创建索引，返回创建后的索引名字
-	CreateIndex(indexName,column string)(string,error)
+	CreateIndex(collection string, indexName,column string)(string,error)
 
 	//删除索引
-	DropIndex(indexName string)error
+	DropIndex(collection string, indexName string)error
 	CreateAccount() string
 	//关闭连接
 	Close()error
@@ -49,9 +49,11 @@ type Response struct {
 	Content []string
 }
 func  InitMgo(url string, database string, collections []string) Mgo{
-	mgo:=Mgo{}
-	clientOptions:=options.Client().ApplyURI(url)
-	client, err:=mongo.Connect(context.TODO(),clientOptions)
+	mgo:=Mgo{
+		collections: make(map[string]*mongo.Collection),
+	}
+	clientOptions:= options.Client().ApplyURI(url)
+	client, err:=mongo.Connect(context.TODO(), clientOptions)
 	if err!=nil{
 		log.Fatal(err)
 	}
@@ -61,12 +63,8 @@ func  InitMgo(url string, database string, collections []string) Mgo{
 	}
 
 	mgo.database = client.Database(database)
-
-	if collections != nil {
-		mgo.collections = make(map[string]*mongo.Collection)
-		for _, collection := range(collections) {
-			mgo.collections[collection] = mgo.database.Collection(collection)
-		}
+	for _, collection := range(collections) {
+		mgo.collections[collection] = mgo.database.Collection(collection)
 	}
 
 	return mgo
@@ -75,7 +73,7 @@ func  InitMgo(url string, database string, collections []string) Mgo{
 func (mc *Mgo)Insert(collection string, val bson.D) (string, error){
 	collect, ok := mc.collections[collection];
 	if !ok {
-		return "", errors.New("invalid collection.")
+		return "", errors.New("invalid collection")
 	}
 	id, err := collect.InsertOne(context.TODO(),val)
 	if err!=nil{
@@ -87,7 +85,7 @@ func (mc *Mgo)Insert(collection string, val bson.D) (string, error){
 func (mc *Mgo)Delete(collection string, hash string)(int64,error){
 	collect, ok := mc.collections[collection];
 	if !ok {
-		return 0, errors.New("invalid collection.")
+		return 0, errors.New("invalid collection")
 	}
 	id,_ := primitive.ObjectIDFromHex(hash)
 	filter:=bson.M{"_id":id}
@@ -101,7 +99,7 @@ func (mc *Mgo)Delete(collection string, hash string)(int64,error){
 func (mc *Mgo)Select(collection string, filter bson.D,sort bson.D,limit int64,skip int64)(*Response,error){
 	collect, ok := mc.collections[collection];
 	if !ok {
-		return nil, errors.New("invalid collection.")
+		return nil, errors.New("invalid collection")
 	}
 	result, err := collect.Find(context.TODO(), filter,options.Find().SetSort(sort).SetLimit(limit).SetSkip(skip))
 	if err!= nil{
@@ -117,7 +115,7 @@ func (mc *Mgo)Select(collection string, filter bson.D,sort bson.D,limit int64,sk
 func (mc *Mgo)SelectById(collection string, hash string)(*Response,error){
 	collect, ok := mc.collections[collection];
 	if !ok {
-		return nil, errors.New("invalid collection.")
+		return nil, errors.New("invalid collection")
 	}
 	id,_ := primitive.ObjectIDFromHex(hash)
 	filter:=bson.M{"_id":id}
@@ -136,7 +134,7 @@ func (mc *Mgo)SelectById(collection string, hash string)(*Response,error){
 func (mc *Mgo)Update(collection string, filter, update bson.D,operation string)(int64,error){
 	collect, ok := mc.collections[collection];
 	if !ok {
-		return 0, errors.New("invalid collection.")
+		return 0, errors.New("invalid collection")
 	}
 	var result *mongo.UpdateResult
 	var err error
@@ -157,9 +155,6 @@ func (mc *Mgo)Update(collection string, filter, update bson.D,operation string)(
 	return result.UpsertedCount,err
 }
 func (mc *Mgo)CreateCollection(collection string) error{
-	if mc.database==nil{
-		return errors.New("操作失败：没有指定数据库")
-	}
 	res:=mc.database.RunCommand(context.TODO(),bson.M{"create":collection})
 	if res.Err()!=nil {
 		log.Fatal(res.Err())
@@ -170,7 +165,7 @@ func (mc *Mgo)CreateCollection(collection string) error{
 func (mc *Mgo)CreateIndex(collection string, indexName, column string)(string,error){
 	collect, ok := mc.collections[collection];
 	if !ok {
-		return "", errors.New("invalid collection.")
+		return "", errors.New("invalid collection")
 	}
 	Doc:=bsonx.Doc{{column ,bsonx.Int32(1)}}
 	idx:=mongo.IndexModel{
@@ -187,7 +182,7 @@ func (mc *Mgo)CreateIndex(collection string, indexName, column string)(string,er
 func (mc *Mgo) DropIndex(collection string, indexName string) error{
 	collect, ok := mc.collections[collection];
 	if !ok {
-		return errors.New("invalid collection.")
+		return errors.New("invalid collection")
 	}
 	_, err := collect.Indexes().DropOne(context.TODO(),indexName)
 	if err != nil {
@@ -200,7 +195,7 @@ func (mc *Mgo) DropIndex(collection string, indexName string) error{
 func (mc *Mgo)CollectInfor(collection string)(interface{}){
 	_, ok := mc.collections[collection];
 	if !ok {
-		return errors.New("invalid collection.")
+		return errors.New("invalid collection")
 	}
 	res:=mc.database.RunCommand(context.TODO(),bson.M{"collStats":collection})
 	var document bson.M
