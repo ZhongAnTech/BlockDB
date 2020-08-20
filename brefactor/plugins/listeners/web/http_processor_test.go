@@ -45,6 +45,7 @@ func TestHttpListener_Handle(t *testing.T) {
 	signature, _ := pri.Sign(hash[:])
 	message := &Message{
 		OpStr:      dataBytes,
+		OpHash:	    hex.EncodeToString(hash[:]),
 		PublicKey: "02c3a28b7e83c83f90c56861210b418dfc7a7302a9449c4c4597eb6e0ce415b944",
 		Signature: hex.EncodeToString(signature),
 	}

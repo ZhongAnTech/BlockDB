@@ -23,23 +23,23 @@ type storageUtil interface {
 	skip:跳过skip条文档 为0：则表示逐条取
 	skip+limit：跳过skip个文档后，取limit个文档
 	*/
-	Select(collection string, filter bson.D,sort bson.D,limit int64,skip int64)(Response,error)
+	Select(collection string, filter bson.D,sort bson.D,limit int64,skip int64)(Response, error)
 	//在collect中查找主键id为hash的文档
-	SelectById(collection string, hash string)(Response,error)
+	SelectById(collection string, hash string)(Response, error)
 	//将filter更新为update
-	Update(collection string, filter, update bson.D,operation string)(int64,error)
+	Update(collection string, filter, update bson.D,operation string)(int64, error)
 	//返回该collect对应的数据库大小、索引大小、文档个数、索引个数
 	CollectInfor(collection string)(interface{})
 	//创建collection 返回创建失败的错误信息；成功则返回nil
 	CreateCollection(collection string) error
 	//创建索引，返回创建后的索引名字
-	CreateIndex(collection string, indexName,column string)(string,error)
+	CreateIndex(collection string, indexName,column string)(string, error)
 
 	//删除索引
-	DropIndex(collection string, indexName string)error
+	DropIndex(collection string, indexName string) error
 	CreateAccount() string
 	//关闭连接
-	Close()error
+	Close() error
 }
 type Mgo struct {
 	database *mongo.Database
@@ -131,7 +131,7 @@ func (mc *Mgo)SelectById(collection string, hash string)(*Response,error){
 	return response, nil
 }
 //TODO根据filter更新所有符合条件的文档
-func (mc *Mgo)Update(collection string, filter, update bson.D,operation string)(int64,error){
+func (mc *Mgo)Update(collection string, filter, update bson.D,operation string)(int64, error){
 	collect, ok := mc.collections[collection];
 	if !ok {
 		return 0, errors.New("invalid collection")

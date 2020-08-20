@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -32,6 +33,7 @@ type HttpListener struct {
 type Message struct {
 	OpStr json.RawMessage `json:"op_str"`
 	PublicKey string `json:"public_key"`
+	OpHash string `json:"op_hash"`
 	Signature string `json:"signature"`
 }
 
@@ -92,6 +94,12 @@ func (l *HttpListener) Handle(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	opHash, err := hex.DecodeString(message.OpHash)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	signatureBytes, err := hex.DecodeString(message.Signature)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
@@ -100,9 +108,14 @@ func (l *HttpListener) Handle(rw http.ResponseWriter, req *http.Request) {
 
 	data := Normalize(string(message.OpStr))
 	hash := sha256.Sum256([]byte(data))
+
+	if !bytes.Equal(opHash, hash[:]) {
+		http.Error(rw, "invalid op_hash", http.StatusBadRequest)
+	}
+
 	isSuccess, err := pubKey.Verify(hash[:], signatureBytes)
 	if err != nil || !isSuccess {
-		http.Error(rw, "invalid signature.", http.StatusBadRequest)
+		http.Error(rw, "invalid signature", http.StatusBadRequest)
 		return
 	}
 
@@ -124,6 +137,28 @@ func (l *HttpListener) Handle(rw http.ResponseWriter, req *http.Request) {
 	rw.WriteHeader(http.StatusOK)
 	rw.Write([]byte("{}")) // TODO: write result of BlockDBCommandProcessor.Process
 
+}
+
+func (l *HttpListener) Info(rw http.ResponseWriter, req *http.Request) {
+	msg, err := ioutil.ReadAll(req.Body)
+	if err != nil || len(msg) == 0 {
+		http.Error(rw, "miss content", http.StatusBadRequest)
+		return
+	}
+
+	input := struct {
+		OpHash string `json:"op_hash"`
+	}{}
+
+	err = json.Unmarshal(msg, &input)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	rw.Write([]byte("{}"))
 }
 
 func (l *HttpListener) Health(rw http.ResponseWriter, req *http.Request) {
