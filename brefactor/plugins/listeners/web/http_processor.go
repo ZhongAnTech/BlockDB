@@ -24,7 +24,7 @@ type HttpListener struct {
 	JsonCommandParser       core_interface.JsonCommandParser
 	BlockDBCommandProcessor core_interface.BlockDBCommandProcessor
 	Config                  HttpListenerConfig
-	storage					Storage
+	Storage                 Storage
 
 	wg      sync.WaitGroup
 	stopped bool
@@ -163,7 +163,7 @@ func (l *HttpListener) Info(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	data, err := l.storage.Info(input.OpHash)
+	data, err := l.Storage.Info(input.OpHash)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
@@ -191,7 +191,7 @@ func (l *HttpListener) Actions(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	data, err := l.storage.Actions(input.OpHash)
+	data, err := l.Storage.Actions(input.OpHash)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
@@ -220,7 +220,7 @@ func (l *HttpListener) Action(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	data, err := l.storage.Action(input.OpHash, input.Version)
+	data, err := l.Storage.Action(input.OpHash, input.Version)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
@@ -248,7 +248,7 @@ func (l *HttpListener) Values(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	data, err := l.storage.Values(input.OpHash)
+	data, err := l.Storage.Values(input.OpHash)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
@@ -277,7 +277,7 @@ func (l *HttpListener) Value(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	data, err := l.storage.Value(input.OpHash, input.Version)
+	data, err := l.Storage.Value(input.OpHash, input.Version)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
@@ -305,7 +305,7 @@ func (l *HttpListener) CurrentValue(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	data, err := l.storage.CurrentValue(input.OpHash)
+	data, err := l.Storage.CurrentValue(input.OpHash)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
