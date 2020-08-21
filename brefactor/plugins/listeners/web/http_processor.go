@@ -24,6 +24,7 @@ type HttpListener struct {
 	JsonCommandParser       core_interface.JsonCommandParser
 	BlockDBCommandProcessor core_interface.BlockDBCommandProcessor
 	Config                  HttpListenerConfig
+	storage					Storage
 
 	wg      sync.WaitGroup
 	stopped bool
@@ -48,6 +49,11 @@ func (l *HttpListener) Setup() {
 
 	l.router = mux.NewRouter()
 	l.router.Methods("POST").Path("/audit").HandlerFunc(l.Handle)
+	l.router.Methods("POST").Path("/info").HandlerFunc(l.Info)
+	l.router.Methods("POST").Path("/actions").HandlerFunc(l.Actions)
+	l.router.Methods("POST").Path("/action").HandlerFunc(l.Action)
+	l.router.Methods("POST").Path("/values").HandlerFunc(l.Values)
+	l.router.Methods("POST").Path("/value").HandlerFunc(l.Value)
 	//l.router.Methods("GET", "POST").Path("/query").HandlerFunc(l.Query)
 	//l.router.Methods("GET", "POST").Path("/queryGrammar").HandlerFunc(l.QueryGrammar)
 	l.router.Methods("GET", "POST").Path("/health").HandlerFunc(l.Health)
@@ -156,9 +162,157 @@ func (l *HttpListener) Info(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	data, err := l.storage.Info(input.OpHash)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
-	rw.Write([]byte("{}"))
+	rw.Write(data)
+}
+
+func (l *HttpListener) Actions(rw http.ResponseWriter, req *http.Request) {
+	msg, err := ioutil.ReadAll(req.Body)
+	if err != nil || len(msg) == 0 {
+		http.Error(rw, "miss content", http.StatusBadRequest)
+		return
+	}
+
+	input := struct {
+		OpHash string `json:"op_hash"`
+	}{}
+
+	err = json.Unmarshal(msg, &input)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	data, err := l.storage.Actions(input.OpHash)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	rw.Write(data)
+}
+
+func (l *HttpListener) Action(rw http.ResponseWriter, req *http.Request) {
+	msg, err := ioutil.ReadAll(req.Body)
+	if err != nil || len(msg) == 0 {
+		http.Error(rw, "miss content", http.StatusBadRequest)
+		return
+	}
+
+	input := struct {
+		OpHash string `json:"op_hash"`
+		Version int `json:"version"`
+	}{}
+
+	err = json.Unmarshal(msg, &input)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	data, err := l.storage.Action(input.OpHash, input.Version)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	rw.Write(data)
+}
+
+func (l *HttpListener) Values(rw http.ResponseWriter, req *http.Request) {
+	msg, err := ioutil.ReadAll(req.Body)
+	if err != nil || len(msg) == 0 {
+		http.Error(rw, "miss content", http.StatusBadRequest)
+		return
+	}
+
+	input := struct {
+		OpHash string `json:"op_hash"`
+	}{}
+
+	err = json.Unmarshal(msg, &input)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	data, err := l.storage.Values(input.OpHash)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	rw.Write(data)
+}
+
+func (l *HttpListener) Value(rw http.ResponseWriter, req *http.Request) {
+	msg, err := ioutil.ReadAll(req.Body)
+	if err != nil || len(msg) == 0 {
+		http.Error(rw, "miss content", http.StatusBadRequest)
+		return
+	}
+
+	input := struct {
+		OpHash string `json:"op_hash"`
+		Version int `json:"version"`
+	}{}
+
+	err = json.Unmarshal(msg, &input)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	data, err := l.storage.Value(input.OpHash, input.Version)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	rw.Write(data)
+}
+
+func (l *HttpListener) CurrentValue(rw http.ResponseWriter, req *http.Request) {
+	msg, err := ioutil.ReadAll(req.Body)
+	if err != nil || len(msg) == 0 {
+		http.Error(rw, "miss content", http.StatusBadRequest)
+		return
+	}
+
+	input := struct {
+		OpHash string `json:"op_hash"`
+	}{}
+
+	err = json.Unmarshal(msg, &input)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	data, err := l.storage.CurrentValue(input.OpHash)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	rw.Write(data)
 }
 
 func (l *HttpListener) Health(rw http.ResponseWriter, req *http.Request) {
