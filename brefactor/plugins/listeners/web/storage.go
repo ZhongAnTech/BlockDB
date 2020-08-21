@@ -65,7 +65,7 @@ func (s *Storage) Value(opHash string, version int) ([]byte, error) {
 	if len(response.Content) != 1 {
 		return nil, errors.New("miss value")
 	}
-	return json.Marshal(response.Content)
+	return json.Marshal(response.Content[0])
 }
 
 func (s *Storage) CurrentValue(opHash string) ([]byte, error) {
