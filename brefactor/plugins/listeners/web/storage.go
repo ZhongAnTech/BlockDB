@@ -80,7 +80,7 @@ func (s *Storage) CurrentValue(opHash string) ([]byte, error) {
 	}
 
 	 info := response.Content[0]
-	 version := info["version"]
+	 version := info["latest_version"]
 	 return s.Value(opHash, version.(int))
 }
 
