@@ -54,6 +54,7 @@ func (l *HttpListener) Setup() {
 	l.router.Methods("POST").Path("/action").HandlerFunc(l.Action)
 	l.router.Methods("POST").Path("/values").HandlerFunc(l.Values)
 	l.router.Methods("POST").Path("/value").HandlerFunc(l.Value)
+	l.router.Methods("POST").Path("/currentValue").HandlerFunc(l.CurrentValue)
 	//l.router.Methods("GET", "POST").Path("/query").HandlerFunc(l.Query)
 	//l.router.Methods("GET", "POST").Path("/queryGrammar").HandlerFunc(l.QueryGrammar)
 	l.router.Methods("GET", "POST").Path("/health").HandlerFunc(l.Health)
