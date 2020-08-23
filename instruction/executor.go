@@ -1,190 +1,567 @@
 package instruction
 
 import (
-	"crypto/sha256"
 	"encoding/json"
+	"github.com/annchain/BlockDB/plugins/server/mongodb/mongoutils"
+	"go.mongodb.org/mongo-driver/bson"
 	"log"
 	"strconv"
 	"time"
 )
 
-func Execute(op int,instruction string){
+const url="mongodb://localhost:27017"
+
+type Op struct {
+	Order int32    `json:"oder"`
+	IsExecuted  bool   `json:"is_executed"`
+	TxHash string	`json:"tx_hash"`
+	OpHash string	`json:"op_hash"`
+	PublicKey string	`json:"public_key"`
+	Signature string	`json:"signature"`
+	OpStr string	`json:"op_str"`
+}
+
+
+func init(){
+	blockdb:= mongoutils.InitMgo(url,BlockDataBase,"")
+	err :=blockdb.CreateCollection(CollCollection)
+	if err!=nil{
+		log.Fatal("failed to create coll collection.")
+	}
+	err =blockdb.CreateCollection(HistoryCollection)
+	if err!=nil{
+		log.Fatal("failed to create history collection.")
+	}
+
+	err =blockdb.CreateCollection(OpRecordCollection)
+	if err!=nil{
+		log.Fatal("failed to create oprecord collection.")
+	}
+	err=blockdb.CreateCollection(InfoCollection)
+	if err!=nil{
+		log.Fatal("failed to create info collection.")
+	}
+	err =blockdb.CreateCollection(AuditCollection)
+	if err!=nil{
+		log.Fatal("failed to create audit collection.")
+	}
+	err=blockdb.Close()
+	if err!=nil{
+		log.Fatal("failed to close connection to blockdb.")
+	}
+	colldb:= mongoutils.InitMgo(url,BlockDataBase,CollCollection)
+	_,err=colldb.CreateIndex("op_hash","op_hash")
+	if err!=nil{
+		log.Fatal("failed to create index for coll on op_hash.")
+	}
+	err=colldb.Close()
+	if err!=nil{
+		log.Fatal("failed to close connection to colldb.")
+	}
+
+	historydb:= mongoutils.InitMgo(url,BlockDataBase,HistoryCollection)
+	_,err=historydb.CreateIndex("op_hash","op_hash")
+	if err!=nil{
+		log.Fatal("failed to create index for history on op_hash.")
+	}
+	err=historydb.Close()
+	if err!=nil{
+		log.Fatal("failed to close connection to historydb.")
+	}
+
+	oprecord:= mongoutils.InitMgo(url,BlockDataBase,OpRecordCollection)
+	_,err=oprecord.CreateIndex("op_hash","op_hash")
+	if err!=nil{
+		log.Fatal("failed to create index for oprecord on op_hash.")
+	}
+	err=oprecord.Close()
+	if err!=nil{
+		log.Fatal("failed to close connection to oprecord.")
+	}
+
+	infodb:= mongoutils.InitMgo(url,BlockDataBase,InfoCollection)
+	_,err=infodb.CreateIndex("op_hash","op_hash")
+	if err!=nil{
+		log.Fatal("failed to create index for info on op_hash.")
+	}
+	err=infodb.Close()
+	if err!=nil{
+		log.Fatal("failed to close connection to infodb.")
+	}
+
+	auditdb:= mongoutils.InitMgo(url,BlockDataBase,AuditCollection)
+	_,err=auditdb.CreateIndex("op_hash","op_hash")
+	if err!=nil{
+		log.Fatal("failed to create index for audit on op_hash.")
+	}
+	err=auditdb.Close()
+	if err!=nil{
+		log.Fatal("failed to close connection to auditdb.")
+	}
+
+}
+
+func GetInstructions(){
+	instructiondb:= mongoutils.InitMgo(url,CommandDataBase,CommandCollection)
+	defer instructiondb.Close()
+	filter:=bson.D{{"is_executed","false"}}
+	sort:=bson.D{{"oder",1}}
+	for{
+		resp,err:=instructiondb.Select(filter,sort,10,0)
+		if err!=nil || len(resp.Content)==0{
+			log.Println("failed to find instructions from blockdb.")
+			continue
+		}
+		for _,ins := range resp.Content{
+			com:=&Op{}
+			err:=json.Unmarshal([]byte(ins),com)
+			if err != nil{
+				log.Println("failed to unmarshal instruction.")
+				continue
+			}
+			tem := make(map[string]interface{})
+			err = json.Unmarshal([]byte(com.OpStr), &tem)
+			if err != nil{
+				log.Println("failed to unmarshal opStr.")
+				continue
+			}
+			tem["op_hash"]=com.OpHash
+			tem["signature"]=com.Signature
+			op := tem["op"].(string)
+			res,err:=json.Marshal(tem)
+			if err != nil{
+				log.Println("failed to marshal opStr.")
+				continue
+			}
+			err=Execute(op,string(res))
+			if err != nil{
+				log.Println(err)
+				continue
+			}
+
+			//update excute state
+			exe_filter:=bson.D{{"op_hash",com.OpHash}}
+			update:=bson.D{{"is_executed",true}}
+			_,err =instructiondb.Update(exe_filter,update,"set")
+			if err != nil {
+				log.Println("failed to update execute state.")
+				continue
+			}
+
+		}
+	}
+}
+
+
+func Execute(op string,instruction string)error{
 	timestamp:=strconv.FormatInt(time.Now().Unix(),10)
 	switch op {
 	case CreateCollection:
-		com:=&BlockDBCommandCollection{}
-		err:=json.Unmarshal([]byte(instruction),com)
+		err:=createColl(instruction,timestamp)
 		if err != nil{
-			log.Fatal("failed to unmarshal create_collection command.")
-			break
+			return err
 		}
-		//TODO: Verification of signature
-		com.Timestamp=timestamp
-		//计算hash
-		hash,err:=getHash(com.Feature)
-		if err != nil{
-			log.Println("failed to marshal insert data.")
-			break
-		}
-		com.Hash=hash
-		//缓存
-		Colls=append(Colls,com)
-		//操作记录
-		OpRecord(op,hash,com.Collection,timestamp,com.Feature,com.PublicKey,com.Signature)
-		//TODO: CreateCollection(BlockDataBase,com.Collection)
-		//TODO: Insert(CollIndexDataBase,com)
-		//历史版本记录
-		HistoryRecord(hash,com.Collection,timestamp,com.Feature,com.PublicKey,com.Signature)
-		//审计记录
-		Audit(op,hash,com.Collection,timestamp,com.Feature,com.PublicKey,com.Signature)
 
 	case UpdateCollection:
-		com:=&BlockDBCommandCollection{}
-		err:=json.Unmarshal([]byte(instruction),com)
+		err:=updateColl(instruction,timestamp)
 		if err != nil{
-			log.Println("failed to unmarshal update_collection command.")
-			break
-		}
-		//TODO: Verification of signature
-		//权限验证
-		if Check(op,com.Collection,com.PublicKey){
-			ok,curColl:=UpdateCollectionFeatures(com.Collection,com.Feature)
-			if ok{
-				com.Timestamp=timestamp
-				OpRecord(op,com.Hash,com.Collection,timestamp,com.Feature,com.PublicKey,com.Signature)
-				//TODO: Insert(CollIndexDataBase,com.Collection,com)
-				HistoryRecord(com.Hash,com.Collection,timestamp,curColl.Feature,com.PublicKey,com.Signature)
-				Audit(op,com.Hash,com.Collection,timestamp,com.Feature,com.PublicKey,com.Signature)
-			}else {
-				log.Println("collection "+com.Collection+" doesn't exist.")
-			}
-		}else{
-			log.Println("update_collection permission denied")
+			return err
 		}
 
 	case Insert:
-		com:=&BlockDBCommandInsert{}
-		err:=json.Unmarshal([]byte(instruction),com)
+		err:=insertDoc(instruction,timestamp)
 		if err != nil{
-			log.Println("failed to unmarshal insert command.")
-			break
-		}
-		//TODO: Verification of signature
-		if Check(op,com.Collection,com.PublicKey){
-			hash,err:=getHash(com.Data)
-			if err != nil{
-				log.Println("failed to marshal insert data.")
-				break
-			}
-			com.Hash=hash
-			com.Timestamp=timestamp
-			OpRecord(op,hash,com.Collection,timestamp,com.Data,com.PublicKey,com.Signature)
-			//TODO: Insert(BlockDataBase,com.Collection,com)
-			HistoryRecord(hash,com.Collection,timestamp,com.Data,com.PublicKey,com.Signature)
-			Audit(op,hash,com.Collection,timestamp,com.Data,com.PublicKey,com.Signature)
-		}else{
-			log.Println("insert permission denied")
+			return err
 		}
 
 	case Update:
-		com:=&BlockDBCommandUpdate{}
-		err:=json.Unmarshal([]byte(instruction),com)
+		err:=updateDoc(instruction,timestamp)
 		if err != nil{
-			log.Println("failed to unmarshal update command.")
-			break
-		}
-		//TODO: Verification of signature
-		if Check(op,com.Collection,com.PublicKey){
-			com.Timestamp=timestamp
-			hash:=com.Query["_hash"]
-			data:=make(map[string]interface{})
-			data["query"]=com.Query
-			data["set"]=com.Set
-			data["unset"]=com.Unset
-			OpRecord(op,hash,com.Collection,timestamp,data,com.PublicKey,com.Signature)
-			//TODO: Update(BlockDataBase,com.Collection,com)
-			//TODO: Update(HistoryDataBase,HistoryCollection,com)
-			Audit(op,hash,com.Collection,timestamp,data,com.PublicKey,com.Signature)
-		}else{
-			log.Println("update permission denied")
+			return err
 		}
 
 	case Delete:
-		com:=&BlockDBCommandDelete{}
-		err:=json.Unmarshal([]byte(instruction),com)
+		err:=deleteDoc(instruction,timestamp)
 		if err != nil{
-			log.Println("failed to unmarshal delete command.")
-			break
-		}
-		//TODO: Verification of signature
-		//权限验证
-		if Check(op,com.Collection,com.PublicKey){
-			com.Timestamp=timestamp
-			hash:=com.Query["_hash"]
-			data:=make(map[string]interface{})
-			data["query"]=com.Query
-			OpRecord(op,hash,com.Collection,timestamp,data,com.PublicKey,com.Signature)
-			//TODO: delete(BlockDataBase,com.Collection,com)
-			//TODO: delete(HistoryDataBase,HistoryCollection,com)
-			Audit(op,hash,com.Collection,timestamp,data,com.PublicKey,com.Signature)
-		}else{
-			log.Println("delete permission denied")
+			return err
 		}
 
 
 	case CreateIndex:
-		com:=&BlockDBCommandIndex{}
-		err:=json.Unmarshal([]byte(instruction),com)
+		err:=createIndex(instruction,timestamp)
 		if err != nil{
-			log.Println("failed to unmarshal create_index command.")
-			break
+			return err
 		}
-		//TODO: Verification of signature
-		com.Timestamp=timestamp
-		data:=make(map[string]interface{})
-		data["index"] = com.Index
-		OpRecord(op,"",com.Collection,timestamp,data,com.PublicKey,com.Signature)
-		Indexes=append(Indexes,com)
-		//TODO: CreateIndex(BlockDataBase,com.Collection,com.Index)
-		HistoryRecord("",com.Collection,timestamp,data,com.PublicKey,com.Signature)
-		Audit(op,"",com.Collection,timestamp,data,com.PublicKey,com.Signature)
 
 	case DropIndex:
-		com:=&BlockDBCommandIndex{}
-		err:=json.Unmarshal([]byte(instruction),com)
+		err:=dropIndex(instruction,timestamp)
 		if err != nil{
-			log.Println("failed to unmarshal drop_index command.")
-			break
+			return err
 		}
-		//TODO: Verification of signature
-		ok,index:=UpdateCollectionIndex(com.Collection,com.Index)
+
+	}
+	return nil
+}
+
+
+func createColl(instruction string,timestamp string)error{
+	com:=&BlockDBCommandCollection{}
+	err:=json.Unmarshal([]byte(instruction),com)
+	if err != nil{
+		log.Fatal("failed to unmarshal create_collection command.")
+		return err
+	}
+	//TODO: Verification of signature
+	com.Timestamp=timestamp
+	//缓存
+	Colls=append(Colls,com)
+	//doc info
+	version,err:=InsertInfo(com.OpHash,com.Collection,com.PublicKey,com.Timestamp)
+	if err != nil{
+		log.Fatal("failed to insert info.")
+		return err
+	}
+	//create collection
+	blockdb:= mongoutils.InitMgo(url,BlockDataBase,"")
+	err = blockdb.CreateCollection(com.Collection)
+	if err!=nil{
+		log.Fatal("failed to connect to block collection.")
+		return err
+	}
+	_=blockdb.Close()
+
+	//create index for op_hash
+	blockdb=mongoutils.InitMgo(url,BlockDataBase,com.Collection)
+	_,err=blockdb.CreateIndex("op_hash","op_hash")
+	if err!=nil{
+		log.Fatal("failed to create index for "+com.Collection+" on op_hash.")
+	}
+	_=blockdb.Close()
+
+	//insert
+	colldb:= mongoutils.InitMgo(url,BlockDataBase,CollCollection)
+	data:=bson.D{{"op_hash",com.OpHash},{"collection",com.Collection},{"feature",com.Feature},
+		{"public_key",com.PublicKey},{"signature",com.Signature},{"timestamp",com.Timestamp}}
+	_,err =colldb.Insert(data)
+	if err != nil {
+		log.Fatal("failed to insert data to colldb.")
+		return err
+	}
+	_=colldb.Close()
+
+	//op record
+	err=OpRecord(CreateCollection,version,com.OpHash,com.Collection,timestamp,com.Feature,com.PublicKey,com.Signature)
+	if err != nil{
+		return err
+	}
+	//history
+	err=HistoryRecord(CreateCollection,com.OpHash,version,com.Collection,timestamp,com.Feature,com.PublicKey,com.Signature)
+	if err != nil{
+		return err
+	}
+	//audit
+	err=Audit(CreateCollection,com.OpHash,com.Collection,timestamp,com.Feature,com.PublicKey,com.Signature)
+	if err != nil{
+		return err
+	}
+	return nil
+}
+
+
+func updateColl(instruction string,timestamp string)error{
+	com:=&BlockDBCommandCollection{}
+	err:=json.Unmarshal([]byte(instruction),com)
+	if err != nil{
+		log.Println("failed to unmarshal update_collection command.")
+		return err
+	}
+	//TODO: Verification of signature
+	//权限验证
+	if Check(UpdateCollection,com.Collection,com.PublicKey){
+		ok,curColl:=UpdateCollectionFeatures(com.Collection,com.Feature)
 		if ok{
 			com.Timestamp=timestamp
-			data:=make(map[string]interface{})
-			data["index"] = com.Index
-			OpRecord(op,"",com.Collection,timestamp,data,com.PublicKey,com.Signature)
-			Audit(op,"",com.Collection,timestamp,data,com.PublicKey,com.Signature)
-			//TODO: DropIndex(BlockDataBase,com.Collection,com.Index)
-			data["index"]=index.Index
-			HistoryRecord("",com.Collection,timestamp,data,com.PublicKey,com.Signature)
-		}else{
-			log.Println("drop index failed.")
+			version,err:=UpdateInfo(curColl.OpHash)
+			if err != nil{
+				log.Println("failed to update info.")
+				return err
+			}
+			//update
+			filter:=bson.D{{"op_hash",curColl.OpHash}}
+			colldb:= mongoutils.InitMgo(url,BlockDataBase,CollCollection)
+			update:=bson.D{{"feature",com.Feature}}
+			_,err =colldb.Update(filter,update,"set")
+			if err != nil {
+				log.Fatal("failed to insert data to colldb.")
+				return err
+			}
+			_=colldb.Close()
+
+			err=OpRecord(UpdateCollection,version,curColl.OpHash,com.Collection,timestamp,com.Feature,com.PublicKey,com.Signature)
+			if err != nil{
+				return err
+			}
+			err=HistoryRecord(UpdateCollection,curColl.OpHash,version,com.Collection,timestamp,curColl.Feature,com.PublicKey,com.Signature)
+			if err != nil{
+				return err
+			}
+			err=Audit(UpdateCollection,curColl.OpHash,com.Collection,timestamp,com.Feature,com.PublicKey,com.Signature)
+			if err != nil{
+				return err
+			}
+		}else {
+			log.Println("collection "+com.Collection+" doesn't exist.")
+		}
+	}else{
+		log.Println("update_collection permission denied")
+	}
+	return nil
+}
+
+
+func insertDoc(instruction string,timestamp string)error{
+	com:=&BlockDBCommandInsert{}
+	err:=json.Unmarshal([]byte(instruction),com)
+	if err != nil{
+		log.Println("failed to unmarshal insert command.")
+		return err
+	}
+	//TODO: Verification of signature
+	if Check(Insert,com.Collection,com.PublicKey){
+		com.Timestamp=timestamp
+		version,err:=InsertInfo(com.OpHash,com.Collection,com.PublicKey,com.Timestamp)
+		if err != nil {
+			log.Println("failed to insert info.")
+			return err
+		}
+		//inset data
+		data:=bson.D{{"op_hash",com.OpHash},{"collection",com.Collection},{"data",com.Data},
+			{"public_key",com.PublicKey},{"signature",com.Signature},{"timestamp",com.Timestamp}}
+		blockdb:=mongoutils.InitMgo(url,BlockDataBase,com.Collection)
+		_,err=blockdb.Insert(data)
+		if err != nil{
+			log.Println("failed to insert data, ophash: "+com.OpHash)
+			return err
+		}
+		_=blockdb.Close()
+
+		err=OpRecord(Insert,version,com.OpHash,com.Collection,timestamp,com.Data,com.PublicKey,com.Signature)
+		if err != nil{
+			return err
+		}
+		err=HistoryRecord(Insert,com.OpHash,version,com.Collection,timestamp,com.Data,com.PublicKey,com.Signature)
+		if err != nil{
+			return err
+		}
+		err=Audit(Insert,com.OpHash,com.Collection,timestamp,com.Data,com.PublicKey,com.Signature)
+		if err != nil{
+			return err
+		}
+	}else{
+		log.Println("insert permission denied")
+	}
+	return nil
+}
+
+
+func updateDoc(instruction string,timestamp string)error{
+	com:=&BlockDBCommandUpdate{}
+	err:=json.Unmarshal([]byte(instruction),com)
+	if err != nil{
+		log.Println("failed to unmarshal update command.")
+		return err
+	}
+	//fmt.Println(com)
+	//TODO: Verification of signature
+	if Check(Update,com.Collection,com.PublicKey){
+		com.Timestamp=timestamp
+		hash:=com.Query["op_hash"]
+		version,err:=UpdateInfo(hash)
+		if err != nil{
+			log.Println("failed to update info.")
+			return err
+		}
+		//fmt.Println("finish update info")
+		data:=make(map[string]interface{})
+		data["query"]=com.Query
+		data["set"]=com.Set
+		data["unset"]=com.Unset
+		blockdb:=mongoutils.InitMgo(url,BlockDataBase,com.Collection)
+		filter:=bson.D{{"op_hash",hash}}
+		if len(com.Set) !=0 {
+			set_update:=bson.D{}
+			for k,v :=range com.Set{
+				set_update=append(set_update, bson.E{"data."+k,v})
+			}
+			_,err=blockdb.Update(filter,set_update,"set")
+			if err != nil{
+				log.Println("failed to update data.")
+				return err
+			}
+
+		}
+		if len(com.Unset) != 0{
+			unset_update:=bson.D{}
+			for _,k:=range com.Unset{
+				unset_update=append(unset_update,bson.E{"data."+k,""})
+			}
+			_,err=blockdb.Update(filter,unset_update,"unset")
+			if err != nil {
+				log.Println("failed to update data.")
+				return err
+			}
+		}
+		_=blockdb.Close()
+
+		err=OpRecord(Update,version,hash,com.Collection,timestamp,data,com.PublicKey,com.Signature)
+		if err != nil{
+			return err
+		}
+		err=HistoryRecord(Update,hash,version,com.Collection,timestamp,data,com.PublicKey,com.Signature)
+		if err != nil{
+			return err
+		}
+		err=Audit(Update,hash,com.Collection,timestamp,data,com.PublicKey,com.Signature)
+		if err != nil{
+			return err
+		}
+	}else{
+		log.Println("update permission denied")
+	}
+	return nil
+}
+
+
+func deleteDoc(instruction string,timestamp string)error{
+	com:=&BlockDBCommandDelete{}
+	err:=json.Unmarshal([]byte(instruction),com)
+	if err != nil{
+		log.Println("failed to unmarshal delete command.")
+		return err
+	}
+	//TODO: Verification of signature
+	//权限验证
+	if Check(Delete,com.Collection,com.PublicKey){
+		com.Timestamp=timestamp
+		hash:=com.Query["op_hash"]
+		data:=make(map[string]interface{})
+		data["query"]=com.Query
+		blockdb:=mongoutils.InitMgo(url,BlockDataBase,com.Collection)
+		_,err=blockdb.Delete(hash)
+		if err != nil{
+			log.Println("failed to delete data.")
+			return err
+		}
+		_=blockdb.Close()
+
+		version,err:=UpdateInfo(hash)
+		if err != nil{
+			log.Println("failed to update info.")
+			return err
+		}
+		err=OpRecord(Delete,version,hash,com.Collection,timestamp,data,com.PublicKey,com.Signature)
+		if err != nil{
+			return err
+		}
+		err=HistoryRecord(Delete,hash,version,com.Collection,timestamp,nil,com.PublicKey,com.Signature)
+		if err != nil{
+			return err
+		}
+		err=Audit(Delete,hash,com.Collection,timestamp,data,com.PublicKey,com.Signature)
+		if err != nil{
+			return err
+		}
+	}else{
+		log.Println("delete permission denied")
+	}
+	return nil
+}
+
+
+func createIndex(instruction string,timestamp string)error{
+	com:=&BlockDBCommandIndex{}
+	err:=json.Unmarshal([]byte(instruction),com)
+	if err != nil{
+		log.Println("failed to unmarshal create_index command.")
+		return err
+	}
+	//TODO: Verification of signature
+	com.Timestamp=timestamp
+	data:=make(map[string]interface{})
+	data["index"] = com.Index
+	version,err:=InsertInfo(com.OpHash,com.Collection,com.PublicKey,com.Timestamp)
+	if err != nil {
+		log.Println("failed to insert info.")
+		return err
+	}
+	//Indexes=append(Indexes,com)
+	blockdb:=mongoutils.InitMgo(url,BlockDataBase,com.Collection)
+	for k,v:=range com.Index{
+		_,err=blockdb.CreateIndex(k,"data."+v)
+		if err != nil{
+			log.Println("failed to create index for: data."+v)
+			return err
 		}
 	}
+	_=blockdb.Close()
+
+	err=OpRecord(CreateIndex,version,com.OpHash,com.Collection,timestamp,data,com.PublicKey,com.Signature)
+	if err != nil{
+		return err
+	}
+	//HistoryRecord(com.OpHash,info.Version,com.Collection,timestamp,data,com.PublicKey,com.Signature)
+	err=Audit(CreateIndex,com.OpHash,com.Collection,timestamp,data,com.PublicKey,com.Signature)
+	if err != nil{
+		return err
+	}
+	return nil
 }
 
-//计算hash
-func getHash(data map[string]interface{}) (string,error){
-	bytes,err:=json.Marshal(data)
+
+func dropIndex(instruction string,timestamp string)error{
+	com:=&BlockDBCommandIndex{}
+	err:=json.Unmarshal([]byte(instruction),com)
 	if err != nil{
-		return "",err
+		log.Println("failed to unmarshal drop_index command.")
+		return err
 	}
-	hash := sha256.Sum256(bytes)
-	return string(hash[:]),nil
+	//TODO: Verification of signature
+	//ok,index:=UpdateCollectionIndex(com.Collection,com.Index)
+	com.Timestamp=timestamp
+	data:=make(map[string]interface{})
+	data["index"] = com.Index
+	version,err:=InsertInfo(com.OpHash,com.Collection,com.PublicKey,com.Timestamp)
+	if err != nil {
+		log.Println("failed to insert info.")
+		return err
+	}
+
+	blockdb:=mongoutils.InitMgo(url,BlockDataBase,com.Collection)
+	for k:=range com.Index{
+		err=blockdb.DropIndex(k)
+		if err != nil{
+			log.Println("failed to drop index: "+k)
+			return err
+		}
+	}
+	_=blockdb.Close()
+
+	err=OpRecord(DropIndex,version,com.OpHash,com.Collection,timestamp,data,com.PublicKey,com.Signature)
+	if err != nil{
+		return err
+	}
+	err=Audit(DropIndex,com.OpHash,com.Collection,timestamp,data,com.PublicKey,com.Signature)
+	if err != nil{
+		return err
+	}
+	//data["index"]=index.Index
+	//HistoryRecord("",com.Collection,timestamp,data,com.PublicKey,com.Signature)
+	return nil
 }
+
 
 //权限验证
-func Check(op int,collection string,publickey string)bool{
+func Check(op string,collection string,publickey string)bool{
 	flag:=false
 outside:
 	for _,coll := range Colls {
@@ -234,15 +611,17 @@ outside:
 }
 
 //更新Coll
-func UpdateCollectionFeatures(collection string,feature map[string]interface{}) (bool,BlockDBCommandCollection){
+func UpdateCollectionFeatures(collection string,feature map[string]interface{}) (bool,*BlockDBCommandCollection){
 	flag := false
-	var curColl BlockDBCommandCollection
+	var curColl *BlockDBCommandCollection
 	for _,curColl = range Colls{
 		if curColl.Collection == collection{
-			for k:=range feature{
-				curColl.Feature[k]=feature[k]
-				flag=true
-			}
+			curColl.Feature=feature
+			flag=true
+			//for k:=range feature{
+			//	curColl.Feature[k]=feature[k]
+			//	flag=true
+			//}
 			break
 		}
 	}
@@ -250,17 +629,17 @@ func UpdateCollectionFeatures(collection string,feature map[string]interface{}) 
 }
 
 //更新Indexes
-func UpdateCollectionIndex(collection string,index map[string]string)(bool,BlockDBCommandIndex){
-	flag:=false
-	var curIndex BlockDBCommandIndex
-	for _,curIndex=range Indexes{
-		if curIndex.Collection == collection{
-			for k:=range index{
-				delete(curIndex.Index,k)
-				flag=true
-			}
-			break
-		}
-	}
-	return flag,curIndex
-}
+//func UpdateCollectionIndex(collection string,index map[string]string)(bool,*BlockDBCommandIndex){
+//	flag:=false
+//	var curIndex *BlockDBCommandIndex
+//	for _,curIndex=range Indexes{
+//		if curIndex.Collection == collection{
+//			for k:=range index{
+//				delete(curIndex.Index,k)
+//				flag=true
+//			}
+//			break
+//		}
+//	}
+//	return flag,curIndex
+//}
