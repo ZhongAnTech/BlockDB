@@ -3,6 +3,7 @@ package mongoutils
 import (
 	"context"
 	"errors"
+	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -12,32 +13,34 @@ import (
 )
 
 type storageUtil interface {
+	//创建数据库连接用户
+	CreateAccount(account,pwd string)error
 	//m：插入的json对应对bson形式；返回插入成功后的主键id
-	Insert(val bson.D) (string, error)
+	Insert(val bson.M) (string, error)
 	//在collect中删除主键id为hash
 	Delete(hash string)(int64,error)
 	/**
-	filter:筛选条件 为空：则表示全取
-	sort:排序条件 为空：则表示不排序
-	limit:查找出来的数据量;为0： 则表示全部
-	skip:跳过skip条文档 为0：则表示逐条取
-	skip+limit：跳过skip个文档后，取limit个文档
-	*/
-	Select(filter bson.D,sort bson.D,limit int64,skip int64)(Response,error)
+		filter:筛选条件 为空：则表示全取
+		sort:排序条件 为空：则表示不排序
+		limit:查找出来的数据量;为0： 则表示全部
+		skip:跳过skip条文档 为0：则表示逐条取
+		skip+limit：跳过skip个文档后，取limit个文档
+	 */
+	Select(filter bson.M,sort bson.M,limit int64,skip int64)(Response,error)
 	//在collect中查找主键id为hash的文档
 	SelectById(hash string)(Response,error)
 	//将filter更新为update
-	Update(filter, update bson.D,operation string)(int64,error)
+	Update(filter, update bson.M,operation string)(int64,error)
 	//返回该collect对应的数据库大小、索引大小、文档个数、索引个数
-	CollectInfor(collection string)(interface{})
+	CollectInfor(collection string)(*CollInfo,error)
 	//创建collection 返回创建失败的错误信息；成功则返回nil
 	CreateCollection(collection string) error
 	//创建索引，返回创建后的索引名字
 	CreateIndex(indexName,column string)(string,error)
-
+	//查询文档大小
+	DocumentInfo(opHash string)(int64,error)
 	//删除索引
 	DropIndex(indexName string)error
-	CreateAccount() string
 	//关闭连接
 	Close()error
 }
@@ -48,9 +51,24 @@ type Mgo struct {
 type Response struct {
 	Content []string
 }
-func  InitMgo(url string,database string,collection string) Mgo{
+type CollInfo struct {
+	storageSize interface{}
+	totalIndexSize interface{}
+	count interface{}
+	indexes interface{}
+}
+func  InitMgo(url ,database ,collection,username,pwd string) Mgo{
 	mgo:=Mgo{}
-	clientOptions:=options.Client().ApplyURI(url)
+	var clientOptions *options.ClientOptions
+	if  username=="" && pwd=="" {
+		clientOptions =options.Client().ApplyURI(url)
+	}else{
+		clientOptions =options.Client().ApplyURI(url).SetAuth(options.Credential{
+			AuthSource: database,
+			Username: username,
+			Password: pwd,
+		})
+	}
 	client,error:=mongo.Connect(context.TODO(),clientOptions)
 	if error!=nil{
 		log.Fatal(error)
@@ -73,7 +91,7 @@ func  InitMgo(url string,database string,collection string) Mgo{
 	return mgo
 }
 //插入一个文档
-func (mc *Mgo)Insert(val bson.D) (string, error){
+func (mc *Mgo)Insert(val bson.M) (string, error){
 	if mc.collect==nil{
 		return "操作失败：",errors.New("缺少要操作的collection")
 	}
@@ -97,7 +115,7 @@ func (mc *Mgo)Delete(hash string)(int64,error){
 	return count.DeletedCount,err
 }
 //根据fileter查询文档
-func (mc *Mgo)Select(filter bson.D,sort bson.D,limit int64,skip int64)(Response,error){
+func (mc *Mgo)Select(filter bson.M,sort bson.M,limit int64,skip int64)(Response,error){
 	if mc.collect==nil{
 		return Response{nil},errors.New("缺少要操作的collection")
 	}
@@ -106,10 +124,23 @@ func (mc *Mgo)Select(filter bson.D,sort bson.D,limit int64,skip int64)(Response,
 		log.Fatal(error)
 	}
 	var response Response
+
 	for result.Next(context.TODO()) {
 		response.Content= append(response.Content,result.Current.String())
 	}
 	return response,error
+}
+//查询文档大小
+func (mc *Mgo)DocumentInfo(opHash string)(int64,error){
+	if mc.collect==nil{
+		log.Fatal("缺少要操作的collection")
+	}
+	res,_:=mc.Select(bson.M{"_hash":opHash},bson.M{},0,0)
+	var size int
+	for i:=0;i< len(res.Content);i++ {
+		size+=len(res.Content[i])*8
+	}
+	return int64(size),nil
 }
 //根据主键查数据
 func (mc *Mgo)SelectById(hash string)(Response,error){
@@ -130,25 +161,25 @@ func (mc *Mgo)SelectById(hash string)(Response,error){
 	return response,error
 }
 //TODO根据filter更新所有符合条件的文档
-func (mc *Mgo)Update(filter, update bson.D,operation string)(int64,error){
+func (mc *Mgo)Update(filter, update bson.M,operation string)(int64,error){
 	if mc.collect==nil{
 		return 0,errors.New("缺少要操作的collection")
 	}
 	var result *mongo.UpdateResult
 	var err error
 	switch operation {
-	case "set":
-		update1:= bson.M{"$set":update}
-		result, err = mc.collect.UpdateMany(context.TODO(), filter, update1)
-		if err != nil {
-			log.Fatal(err)
-		}
-	case "unset":
-		update1:= bson.M{"$unset":update}
-		result, err = mc.collect.UpdateMany(context.TODO(), filter, update1)
-		if err != nil {
-			log.Fatal(err)
-		}
+		case "set":
+			update1:= bson.M{"$set":update}
+			result, err = mc.collect.UpdateMany(context.TODO(), filter, update1)
+			if err != nil {
+				log.Fatal(err)
+			}
+		case "unset":
+			update1:= bson.M{"$unset":update}
+			result, err = mc.collect.UpdateMany(context.TODO(), filter, update1)
+			if err != nil {
+				log.Fatal(err)
+			}
 	}
 	return result.UpsertedCount,err
 }
@@ -191,12 +222,12 @@ func (mc *Mgo) DropIndex(indexName string)error{
 
 }
 //返回数据库大小、索引大小、文档个数、索引个数
-func (mc *Mgo)CollectInfor(collection string)(interface{}){
+func (mc *Mgo)CollectInfor(collection string)(*CollInfo,error){
 	if mc.database==nil{
-		return errors.New("缺少要操作的数据库")
+		return nil,errors.New("缺少要操作的数据库")
 	}
 	if mc.collect==nil{
-		return errors.New("缺少要操作的collection")
+		return nil,errors.New("缺少要操作的collection")
 	}
 	res:=mc.database.RunCommand(context.TODO(),bson.M{"collStats":collection})
 	var document bson.M
@@ -204,18 +235,13 @@ func (mc *Mgo)CollectInfor(collection string)(interface{}){
 	if err!=nil{
 		log.Fatal(err)
 	}
-	response:= struct {
-		storageSize interface{}
-		totalIndexSize interface{}
-		count interface{}
-		indexes interface{}
-	}{
+	response:= &CollInfo{
 		storageSize: document["storageSize"],
 		totalIndexSize:document["totalIndexSize"],
 		count:document["count"],
 		indexes:document["nindexes"],
 	}
-	return response
+	return response,nil
 }
 //func (m *Mgo)CreateAccount()error
 func (mc *Mgo) Close()error{
@@ -227,5 +253,21 @@ func (mc *Mgo) Close()error{
 	if err != nil {
 		log.Fatal(err)
 	}
+	return err
+}
+func (mc *Mgo)CreateAccount(account,pwd string)error{
+	if mc.database==nil{
+		return errors.New("缺少要操作的数据库")
+	}
+	var roles [1]string
+	roles[0]="dbOwner"
+
+	res:=mc.database.RunCommand(context.TODO(),bson.M{"createUser":account,"pwd":pwd,"roles":roles})
+	var document bson.M
+	err := res.Decode(&document)
+	if err!=nil{
+		log.Fatal(err)
+	}
+	fmt.Print(document)
 	return err
 }
