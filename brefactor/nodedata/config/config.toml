@@ -1,0 +1,28 @@
+[log]
+    level = "trace"
+
+[listener]
+    [listener.http]
+    enabled = true
+    port = 8080
+    max_content_length = 10000000
+    timeout_db_ms = 60000
+
+[storage]
+    [storage.mongodb]
+    url = "mongodb://paichepai.win:27017"
+    database = "blockdb"
+    auth_method = ""
+    username = ""
+    password = ""
+
+    timeout_connect_ms = 5000
+
+
+[blockchain]
+    [blockchain.og]
+    enabled = true
+    url="http://nbstock.top:30022/new_archive"
+    idle_connection_seconds = 5
+    buffer_size = 100
+    retry_times = 5
