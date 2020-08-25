@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"log"
@@ -154,6 +155,8 @@ func (t *InstructionExecutor) updateColl(gcmd GeneralCommand) (err error) {
 		return
 	}
 
+	actionTs := ts()
+
 	// permission verification
 	if !t.PermissionVerify(UpdateCollection, cmd.Collection, cmd.PublicKey) {
 		err = errors.New("user does not have permission to perform updateColl")
@@ -178,9 +181,22 @@ func (t *InstructionExecutor) updateColl(gcmd GeneralCommand) (err error) {
 
 	masterDocInfoDocCurrentM := masterDocInfoDocCurrentMList.Content[0]
 	id = masterDocInfoDocCurrentM["_id"]
-	oldVersion := masterDocInfoDocCurrentM["version"]
+	oldVersion := masterDocInfoDocCurrentM["version"].(int)
 
 	// TODO: update master_docinfo
+	update := bson.M{
+		"version":     oldVersion + 1,
+		"modified_at": actionTs,
+		"modified_by": cmd.PublicKey,
+	}
+	count, err := t.storageExecutor.Update(ctx, t.formatCollectionName(MasterCollection, DocInfoType),
+		filter, update, "set")
+	if err != nil {
+		return
+	}
+	if count != 1 {
+		return fmt.Errorf("unexpected update: results: %d", count)
+	}
 
 	// TODO: update master_data
 
