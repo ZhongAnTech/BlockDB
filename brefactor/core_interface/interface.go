@@ -30,7 +30,7 @@ type CommandExecutor interface{}
 
 type StorageExecutor interface {
 	//插入的json对应对bson形式；返回插入成功后的主键id
-	Insert(ctx context.Context, collectionName string, val bson.D) (string, error)
+	Insert(ctx context.Context, collectionName string, val bson.M) (string, error)
 	//在collect中删除主键id为hash
 	Delete(ctx context.Context, collectionName string, id string) (int64, error)
 	/**
@@ -41,11 +41,13 @@ type StorageExecutor interface {
 	skip+limit：跳过skip个文档后，取limit个文档
 	*/
 	Select(ctx context.Context, collectionName string,
-		filter bson.D, sort bson.D, limit int64, skip int64) (response SelectResponse, err error)
+		filter bson.M, sort bson.M, limit int64, skip int64) (response SelectResponse, err error)
 	//在collect中查找主键id为hash的文档
 	SelectById(ctx context.Context, collectionName string, id string) (response SelectResponse, err error)
 	//将filter更新为update
-	Update(ctx context.Context, collectionName string, filter, update bson.D, operation string) (count int64, err error)
+	Update(ctx context.Context, collectionName string, filter, update bson.M, operation string) (count int64, err error)
+	//将filter更新为update
+	//UpdateById(ctx context.Context, collectionName string, id string, update bson.M, operation string) (count int64, err error)
 	//创建collection 返回创建失败的错误信息；成功则返回nil
 	CreateCollection(ctx context.Context, collectionName string) (err error)
 	//创建索引，返回创建后的索引名字

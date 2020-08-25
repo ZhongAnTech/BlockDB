@@ -24,7 +24,7 @@ func (s *BusinessReader) Close(ctx context.Context) error {
 }
 
 func (s *BusinessReader) Info(ctx context.Context, opHash string) ([]byte, error) {
-	filter := bson.D{{"op_hash", opHash}}
+	filter := bson.M{{"op_hash", opHash}}
 	response, err := s.storageExecutor.Select(ctx, "sample_collection", filter, nil, 0, 0)
 	if err != nil {
 		return nil, err
@@ -36,7 +36,7 @@ func (s *BusinessReader) Info(ctx context.Context, opHash string) ([]byte, error
 }
 
 func (s *BusinessReader) Actions(ctx context.Context, opHash string) ([]byte, error) {
-	filter := bson.D{{"op_hash", opHash}}
+	filter := bson.M{{"op_hash", opHash}}
 	response, err := s.storageExecutor.Select(ctx, "sample_collection", filter, nil, 0, 0)
 	if err != nil {
 		return nil, err
@@ -45,7 +45,7 @@ func (s *BusinessReader) Actions(ctx context.Context, opHash string) ([]byte, er
 }
 
 func (s *BusinessReader) Action(ctx context.Context, opHash string, version int) ([]byte, error) {
-	filter := bson.D{{"op_hash", opHash}, {"version", version}}
+	filter := bson.M{{"op_hash", opHash}, {"version", version}}
 	response, err := s.storageExecutor.Select(ctx, "sample_collection", filter, nil, 0, 0)
 	if err != nil {
 		return nil, err
@@ -57,7 +57,7 @@ func (s *BusinessReader) Action(ctx context.Context, opHash string, version int)
 }
 
 func (s *BusinessReader) Values(ctx context.Context, opHash string) ([]byte, error) {
-	filter := bson.D{{"op_hash", opHash}}
+	filter := bson.M{{"op_hash", opHash}}
 	response, err := s.storageExecutor.Select(ctx, "sample_collection", filter, nil, 0, 0)
 	if err != nil {
 		return nil, err
@@ -66,7 +66,7 @@ func (s *BusinessReader) Values(ctx context.Context, opHash string) ([]byte, err
 }
 
 func (s *BusinessReader) Value(ctx context.Context, opHash string, version int) ([]byte, error) {
-	filter := bson.D{{"op_hash", opHash}, {"version", version}}
+	filter := bson.M{{"op_hash", opHash}, {"version", version}}
 	response, err := s.storageExecutor.Select(ctx, "sample_collection", filter, nil, 0, 0)
 	if err != nil {
 		return nil, err
@@ -78,7 +78,7 @@ func (s *BusinessReader) Value(ctx context.Context, opHash string, version int) 
 }
 
 func (s *BusinessReader) CurrentValue(ctx context.Context, opHash string) ([]byte, error) {
-	filter := bson.D{{"op_hash", opHash}}
+	filter := bson.M{{"op_hash", opHash}}
 	response, err := s.storageExecutor.Select(ctx, "sample_collection", filter, nil, 0, 0)
 	if err != nil {
 		return nil, err

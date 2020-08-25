@@ -8,8 +8,14 @@ import (
 
 func Audit(op string, hash string, coll string, timestamp string, data map[string]interface{}, pk string, sig string) error {
 	auditdb := storage.InitMongo(url, BlockDataBase, AuditCollection)
-	audit := bson.D{{"op_hash", hash}, {"collection", coll}, {"operation", op}, {"timestamp", timestamp},
-		{"data", data}, {"public_key", pk}, {"signature", sig}}
+	audit := bson.M{
+		{"op_hash", hash},
+		{"collection", coll},
+		{"operation", op},
+		{"timestamp", timestamp},
+		{"data", data},
+		{"public_key", pk},
+		{"signature", sig}}
 	_, err := auditdb.Insert(audit)
 	if err != nil {
 		log.Fatal("failed to insert data to history.")

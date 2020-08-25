@@ -13,7 +13,7 @@ func TestUnmarshal(t *testing.T) {
 	//str:=`{"op":"insert", "collection":"sample_collection", "data":{"name":"fudan", "address":{"city":"Shanghai", "road":"xxx"}, "logo":{"url":"http://a.png"}, "teachers":["T1", "T2", "T3"]}, "public_key":"0x769153474351324", "signature":"0x169153474351324"}`
 	//str:=`{"op": "update","name": "sample_collection","query": {"op_hash": "0x739483392203"},"set": {"name": "fudanNew","address.city": "Shanghai North East","logo": {}},"unset": ["teachers"],"public_key": "0x769153474351324","signature": "0x169153474351324","op_hash":"0x739483392203"}`
 	str := `{"op": "hint_create_index","name": "sample_collection","index": {"idx_address_city": "address.city","idx_address_city2": "address.city2"},"public_key": "0x769153474351324","signature": "0x169153474351324"}`
-	cmd := &BlockDBCommandIndex{}
+	cmd := &IndexCommand{}
 	err := json.Unmarshal([]byte(str), cmd)
 	if err != nil {
 		fmt.Println(err)

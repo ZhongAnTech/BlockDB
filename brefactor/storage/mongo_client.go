@@ -48,7 +48,7 @@ func Connect(ctx context.Context, url string, databaseName string, authMechanism
 }
 
 //插入一个文档
-func (mc *MongoClient) Insert(ctx context.Context, collectionName string, val bson.D) (string, error) {
+func (mc *MongoClient) Insert(ctx context.Context, collectionName string, val bson.M) (string, error) {
 	collect := mc.ensureColl(collectionName)
 	id, err := collect.InsertOne(ctx, val)
 	if err != nil {
@@ -72,7 +72,7 @@ func (mc *MongoClient) Delete(ctx context.Context, collectionName string, id str
 
 //根据fileter查询文档
 func (mc *MongoClient) Select(ctx context.Context, collectionName string,
-	filter bson.D, sort bson.D, limit int64, skip int64) (response core_interface.SelectResponse, err error) {
+	filter bson.M, sort bson.M, limit int64, skip int64) (response core_interface.SelectResponse, err error) {
 
 	collect := mc.ensureColl(collectionName)
 
@@ -117,7 +117,7 @@ func (mc *MongoClient) SelectById(ctx context.Context, collectionName string, id
 }
 
 //TODO根据filter更新所有符合条件的文档
-func (mc *MongoClient) Update(ctx context.Context, collectionName string, filter, update bson.D, operation string) (count int64, err error) {
+func (mc *MongoClient) Update(ctx context.Context, collectionName string, filter, update bson.M, operation string) (count int64, err error) {
 	collect := mc.ensureColl(collectionName)
 
 	var result *mongo.UpdateResult
