@@ -36,7 +36,7 @@ func (n *BlockDB) Stop() {
 }
 
 func (n *BlockDB) Name() string {
-	panic("implement me")
+	return "BlockDB"
 }
 
 func (n *BlockDB) InitDefault() {
