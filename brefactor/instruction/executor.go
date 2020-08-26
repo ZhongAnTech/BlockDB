@@ -31,8 +31,8 @@ var NamePattern = map[string]string{
 var InitCollections = []string{DataType, HistoryType, OpRecordType, DocInfoType}
 
 var (
-	filter = bson.M{{"is_executed", "false"}}
-	sort   = bson.M{{"oder", 1}}
+	filter = bson.M{"is_executed": "false"}
+	sort   = bson.M{"oder": 1}
 )
 
 type InstructionExecutorConfig struct {
@@ -140,20 +140,19 @@ func (t *InstructionExecutor) doBatchJob() (didSome bool) {
 		})
 		if err != nil {
 			logrus.WithError(err).WithField("op", op.OpStr).Error("failed to execute op")
-			// TODO: retry or mark as failed
+			// TODO: retry or mark as failed, according to err type
 			continue
 		}
 
 		ctx, _ := context.WithTimeout(context.Background(), t.Config.WriteTimeout)
 		// update excute state
-		exeFilter := bson.M{{"op_hash", op.OpHash}}
-		update := bson.M{{"is_executed", true}}
+		exeFilter := bson.M{"op_hash": op.OpHash}
+		update := bson.M{"is_executed": true}
 		_, err = t.storageExecutor.Update(ctx, CommandCollection, exeFilter, update, "set")
 		if err != nil {
 			log.Println("failed to update execute state.")
 			continue
 		}
-
 	}
 	return true
 }

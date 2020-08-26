@@ -2,15 +2,21 @@ package og
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/ZhongAnTech/BlockDB/brefactor/core_interface"
+	"github.com/ZhongAnTech/BlockDB/brefactor/plugins/serve/mongo"
 	"github.com/sirupsen/logrus"
+	"go.mongodb.org/mongo-driver/bson"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"time"
 )
+
+var sendToExecutor = make(chan interface{}, 100)
 
 type OgClientConfig struct {
 	LedgerUrl  string
@@ -23,12 +29,29 @@ type OgArchiveResponse struct {
 	Data    interface{}
 }
 
+type TxReq struct {
+	Data []byte `json:"data"`
+}
+
 type OgClient struct {
 	Config OgClientConfig
 
 	dataChan   chan *core_interface.BlockDBMessage
 	quit       chan bool
 	httpClient *http.Client
+}
+
+func NewOgClient(config OgClientConfig) *OgClient {
+	_, err := url.Parse(config.LedgerUrl)
+	if err != nil {
+		panic(err)
+	}
+	return &OgClient{
+		Config:     config,
+		dataChan:   make(chan *core_interface.BlockDBMessage),
+		quit:       make(chan bool),
+		httpClient: createHTTPClient(),
+	}
 }
 
 func (m *OgClient) Name() string {
@@ -45,10 +68,28 @@ func (m *OgClient) Stop() {
 	m.quit <- true
 }
 
+//func Connection(url string) string {
+//	resp, err := http.Get(url)
+//	if err != nil {
+//		fmt.Printf("http.Get()函数执行错误,错误为:%v\n", err)
+//	}
+//	defer resp.Body.Close()
+//
+//	body, err := ioutil.ReadAll(resp.Body)
+//
+//	if err != nil {
+//		fmt.Printf("ioutil.ReadAll()函数执行出错,错误为:%v\n", err)
+//	}
+//	fmt.Println("connection succ..",string(body))
+//	return string(string(body))
+//}
+
 func (m *OgClient) Start() {
 	logrus.Info("OgProcessor started")
 	// start consuming queue
+
 	go m.ConsumeQueue()
+
 }
 
 // createHTTPClient for connection re-use
@@ -63,50 +104,120 @@ func createHTTPClient() *http.Client {
 	return client
 }
 
+type isOnChain struct {
+	TxHash string `json:"tx_hash"`
+	OpHash string `json:"op_hash"`
+	//0:正在上链， 1:已经上链，2:上链失败
+	Status int `json:"status"`
+}
+
 func (o *OgClient) ConsumeQueue() {
+	// TODO: adapt mongo to
+	mgo := mongo.InitMgo("mongodb://localhost:27017", "test", "dataToOG")
+	mgo2 := mongo.InitMgo("mongodb://localhost:27017", "test", "isOnChain")
 outside:
 	for {
 		logrus.WithField("size", len(o.dataChan)).Debug("og queue size")
 		select {
 		case msg := <-o.dataChan:
+			//need to save msg in mongodb
+			fmt.Println(msg)
+			id, err := mgo.Insert(bson.D{
+				//{"tx_hash",msg.TxHash},
+				{"public_key", msg.PublicKey},
+				{"signature", msg.Signature},
+				{"op_hash", msg.OpHash},
+				{"op_str", msg.Data},
+			})
+			fmt.Println("######", id)
+
 			retry := 0
-			var resData interface{}
-			var err error
+			var resData OgArchiveResponse
 			for ; retry < o.Config.RetryTimes; retry++ {
+
 				resData, err = o.sendToLedger(msg)
+				if resData.Data == nil {
+					fmt.Println(resData.Message)
+					break
+				} else {
+
+					//txhash-ophash 存入isOnchain集合中
+					txHash := resData.Data.(string)
+					fmt.Println(".....", txHash)
+					isOn := &isOnChain{
+						TxHash: txHash,
+						OpHash: msg.OpHash,
+						Status: 0,
+					}
+
+					mgo2.Insert(bson.D{
+						{"tx_hash", txHash},
+						{"op_hash", isOn.OpHash},
+						{"status", isOn.Status},
+					})
+				}
+
 				// TODO: check the message returned by OG.
 				if err != nil {
 					logrus.WithField("retry", retry).WithError(err).Warnf("failed to send to ledger")
-				} else if resData == nil {
+				} else if resData.Data == nil {
 					err = fmt.Errorf("response is nil")
 					logrus.WithField("retry", retry).WithError(err).Warnf("failed to send to ledger")
 				} else {
 					logrus.WithField("response", resData).Debug("got response")
 					// TODO: mark this message as "send ok" in your own task db.
-					//err = o.originalDataProcessor.InsertOne(fmt.Sprintf("%v", resData), event.data)
-					//if err != nil {
-					//	logrus.WithField("response", resData).Error("write data err")
-					//}
-					break
+					mgo.Delete(id)
+
 				}
 			}
+
 			// TODO: mark this message as "failed" in your own task db.
 			// future queries will come to see if the task succeeded or not
 			if retry == o.Config.RetryTimes {
 				err = fmt.Errorf("failed to send data to ledger. Abandon. %v", err)
 				logrus.WithField("data", msg).Error("failed to send data to ledger. Abandon.")
+
+				//上链失败更新到isOnChain
+				io := isOnChain{
+					TxHash: resData.Data.(string),
+					OpHash: msg.OpHash,
+					Status: 2,
+				}
+
+				mgo3 := mongo.InitMgo("mongodb://localhost:27017", "test", "isOnChain")
+				mgo3.Update(bson.D{{"tx_hash", io.TxHash}, {"op_hash", io.OpHash}, {"status", 0}}, bson.D{{"tx_hash", io.TxHash}, {"op_hash", io.OpHash}, {"status", 2}}, "unset")
+
 			}
 			//event.callbackChan <- err
 
 		case <-o.quit:
 			break outside
 		}
+
 	}
 	logrus.Info("OgProcessor stopped")
 }
 
 func (o *OgClient) EnqueueSendToLedger(command *core_interface.BlockDBMessage) error {
+	mgo := mongo.InitMgo("mongodb://localhost:27017", "test", "dataToOG")
+	fmt.Println("COMMAND:", command)
+	command.Data = base64.StdEncoding.EncodeToString([]byte(command.Data))
+
+	//取出上链失败的重新上链
+	results, err := mgo.Select(nil, nil, 10, 0)
+	if err != nil {
+		fmt.Println("ERR: ", err)
+	}
+	if results.Content != nil {
+		for _, result := range results.Content {
+			a := core_interface.BlockDBMessage{}
+			json.Unmarshal([]byte(result), &a)
+			o.dataChan <- &a
+		}
+	}
+
 	o.dataChan <- command
+	fmt.Println(len(o.dataChan))
 	return nil
 }
 
@@ -119,13 +230,20 @@ func (o *OgClient) sendToLedger(message *core_interface.BlockDBMessage) (resData
 	defer timeTrack(time.Now(), "sendToLedger")
 
 	dataBytes, err := json.Marshal(message)
+	fmt.Println(dataBytes)
 	if err != nil {
 		logrus.WithError(err).Fatal("impl: you should provide a method to marshal json")
 	}
 
+	txReq := TxReq{
+		Data: dataBytes,
+	}
+	dataBytes, err = json.Marshal(txReq)
+
 	req, err := http.NewRequest("POST", o.Config.LedgerUrl, bytes.NewBuffer(dataBytes))
 	logrus.WithField("data ", string(dataBytes)).Trace("send data to og")
 
+	//返回*response，关于连接的信息
 	response, err := o.httpClient.Do(req)
 
 	if err != nil {
@@ -137,12 +255,14 @@ func (o *OgClient) sendToLedger(message *core_interface.BlockDBMessage) (resData
 	// Let's check if the work actually is done
 	// We have seen inconsistencies even when we get 200 OK response
 	body, err := ioutil.ReadAll(response.Body)
+	fmt.Println(string(body))
 	if err != nil {
 		logrus.WithError(err).Fatalf("Couldn't parse response body.")
 		return
 	}
 	var respj OgArchiveResponse
 	err = json.Unmarshal(body, &respj)
+	fmt.Println("*********", respj)
 	if err != nil {
 		logrus.WithField("response ", string(body)).WithError(err).Warnf(
 			"got error from og, status %d ,%s ", response.StatusCode, response.Status)
@@ -158,5 +278,6 @@ func (o *OgClient) sendToLedger(message *core_interface.BlockDBMessage) (resData
 		err = fmt.Errorf("got response code %d ,response status %s", response.StatusCode, response.Status)
 		return
 	}
+
 	return respj, nil
 }
