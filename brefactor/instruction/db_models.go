@@ -66,6 +66,16 @@ type OpDoc struct {
 	PublicKey  string `json:"public_key"`
 }
 
+// data table
+type DataDoc struct {
+	DocId   string `json:"doc_id"` // 文档Id
+	Timestamp int64                 `json:"timestamp"`
+	Data      map[string]interface{} `json:"data"`
+	PublicKey string                 `json:"public_key"` //公钥
+	Signature string                 `json:"signature"`  //签名
+}
+
+
 // oprecord table. One for each collection
 type OpRecordDoc struct {
 	DocId   string `json:"doc_id"`  // 文档Id
@@ -73,7 +83,7 @@ type OpRecordDoc struct {
 	Version int    `json:"version"`
 	//Collection string                 `json:"collection"` //操作的数据表
 	Operation string                 `json:"operation"`
-	Timestamp string                 `json:"timestamp"`
+	Timestamp int64                 `json:"timestamp"`
 	Data      map[string]interface{} `json:"data"`       //操作记录
 	PublicKey string                 `json:"public_key"` //公钥
 	Signature string                 `json:"signature"`  //签名
@@ -84,7 +94,7 @@ type HistoryDoc struct {
 	DocId   string `json:"doc_id"` // 文档Id
 	Version int    `json:"version"`
 	//Collection string                 `json:"collection"` //操作的数据表
-	Timestamp string                 `json:"timestamp"`
+	Timestamp int64                 `json:"timestamp"`
 	Data      map[string]interface{} `json:"history"`    //历史版本
 	PublicKey string                 `json:"public_key"` //公钥
 	Signature string                 `json:"signature"`  //签名

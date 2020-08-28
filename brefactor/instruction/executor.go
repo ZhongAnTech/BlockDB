@@ -176,7 +176,7 @@ func (t *InstructionExecutor) Execute(command GeneralCommand) (err error) {
 }
 
 //更新Coll
-func (t *InstructionExecutor) UpdateCollectionFeatures(collection string, feature map[string]interface{}) (bool, *CollectionCommand) {
+/*func (t *InstructionExecutor) UpdateCollectionFeatures(collection string, feature map[string]interface{}) (bool, *CollectionCommand) {
 	flag := false
 	var curColl *CollectionCommand
 	for _, curColl = range Colls {
@@ -191,7 +191,7 @@ func (t *InstructionExecutor) UpdateCollectionFeatures(collection string, featur
 		}
 	}
 	return flag, curColl
-}
+}*/
 
 //更新Indexes
 //func UpdateCollectionIndex(collection string,index map[string]string)(bool,*IndexCommand){

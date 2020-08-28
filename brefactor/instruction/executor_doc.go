@@ -1,162 +1,341 @@
 package instruction
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
+	"log"
 )
 
-func (t *InstructionExecutor) insertDoc(instruction OpContext) error {
-	com := &InsertCommand{}
-	err := json.Unmarshal([]byte(instruction), com)
-	if err != nil {
-		log.Println("failed to unmarshal insert command.")
-		return err
-	}
-	//TODO: Verification of signature
-	if Check(Insert, com.Collection, com.PublicKey) {
-		com.Timestamp = timestamp
-		version, err := InsertInfo(com.OpHash, com.Collection, com.PublicKey, com.Timestamp)
-		if err != nil {
-			log.Println("failed to insert info.")
-			return err
-		}
-		//inset data
-		data := bson.M{{"op_hash", com.OpHash}, {"collection", com.Collection}, {"data", com.Data},
-			{"public_key", com.PublicKey}, {"signature", com.Signature}, {"timestamp", com.Timestamp}}
-		blockdb := mongoutils.InitMgo(url, BlockDataBase, com.Collection)
-		_, err = blockdb.Insert(data)
-		if err != nil {
-			log.Println("failed to insert data, ophash: " + com.OpHash)
-			return err
-		}
-		_ = blockdb.Close()
+func (t *InstructionExecutor) insertDoc(gcmd GeneralCommand) (err error) {
+	ctx, _ := context.WithTimeout(context.Background(), t.Config.WriteTimeout)
 
-		err = OpRecord(Insert, version, com.OpHash, com.Collection, timestamp, com.Data, com.PublicKey, com.Signature)
-		if err != nil {
-			return err
-		}
-		err = HistoryRecord(Insert, com.OpHash, version, com.Collection, timestamp, com.Data, com.PublicKey, com.Signature)
-		if err != nil {
-			return err
-		}
-		err = Audit(Insert, com.OpHash, com.Collection, timestamp, com.Data, com.PublicKey, com.Signature)
-		if err != nil {
-			return err
-		}
-	} else {
-		log.Println("insert permission denied")
+	cmd := &InsertCommand{}
+	err = json.Unmarshal([]byte(gcmd.OpStr), cmd)
+	if err != nil {
+		log.Fatal("failed to unmarshal insert gcmd.")
+		return
 	}
-	return nil
+
+	version:=1
+	ts := ts()
+
+	// permission verification
+	if !t.PermissionVerify(Insert, cmd.Collection, cmd.PublicKey) {
+		err = errors.New("user does not have permission to perform insertDoc")
+		logrus.WithError(err).Warn("error on insertDoc")
+		return
+	}
+
+	// TODO: insert doc data
+	dataDoc:=DataDoc{
+		DocId: gcmd.OpHash,
+		Timestamp: ts,
+		Data: cmd.Data,
+		PublicKey: gcmd.PublicKey,
+		Signature: gcmd.Signature,
+	}
+	dataDocM, err := toDoc(dataDoc)
+	if err != nil {
+		return
+	}
+	_, err = t.storageExecutor.Insert(ctx, t.formatCollectionName(cmd.Collection, DataType), dataDocM)
+	if err != nil {
+		logrus.WithError(err).Error("failed to create data document: "+cmd.Collection)
+		// TODO: consider revert the changes or retry or something.
+	}
+
+
+	// TODO: insert doc info
+	docInfoDoc := DocInfoDoc{
+		DocId: gcmd.OpHash,
+		Version:    version,
+		CreatedAt:  ts,
+		CreatedBy:  gcmd.PublicKey,
+		ModifiedAt: ts,
+		ModifiedBy: gcmd.PublicKey,
+	}
+	docInfoDocM, err := toDoc(docInfoDoc)
+	if err != nil {
+		return
+	}
+	_, err = t.storageExecutor.Insert(ctx, t.formatCollectionName(cmd.Collection, DocInfoType), docInfoDocM)
+	if err != nil {
+		logrus.WithError(err).Error("failed to create data DocInfoDoc document")
+		// TODO: consider revert the changes or retry or something.
+	}
+
+	// TODO: insert doc history
+	historyDoc := HistoryDoc{
+		DocId: gcmd.OpHash,
+		PublicKey: gcmd.PublicKey,
+		Signature: gcmd.Signature,
+		Timestamp: ts,
+		Version: version,
+		Data:cmd.Data,
+	}
+	err=t.InsertDocHistory(ctx,historyDoc,cmd.Collection)
+	if err != nil {
+		return
+	}
+
+	// TODO: insert doc oprecord
+	opRecordDoc := OpRecordDoc{
+		DocId: gcmd.OpHash,
+		OpHash:    gcmd.OpHash,
+		PublicKey: gcmd.PublicKey,
+		Signature: gcmd.Signature,
+		Timestamp: ts,
+		Version: version,
+		Operation: cmd.Op,
+		Data: cmd.Data,
+	}
+	err=t.InsertOpRecord(ctx,opRecordDoc,cmd.Collection)
+
+	return
 }
 
-func (t *InstructionExecutor) updateDoc(instruction OpContext) error {
-	com := &UpdateCommand{}
-	err := json.Unmarshal([]byte(instruction), com)
+func (t *InstructionExecutor) updateDoc(gcmd GeneralCommand) (err error)  {
+	ctx, _ := context.WithTimeout(context.Background(), t.Config.WriteTimeout)
+
+	cmd := &UpdateCommand{}
+	err = json.Unmarshal([]byte(gcmd.OpStr), cmd)
 	if err != nil {
-		log.Println("failed to unmarshal update command.")
+		log.Fatal("failed to unmarshal update gcmd.")
 		return err
 	}
-	//fmt.Println(com)
-	//TODO: Verification of signature
-	if Check(Update, com.Collection, com.PublicKey) {
-		com.Timestamp = timestamp
-		hash := com.Query["op_hash"]
-		version, err := UpdateInfo(hash)
-		if err != nil {
-			log.Println("failed to update info.")
-			return err
-		}
-		//fmt.Println("finish update info")
-		data := make(map[string]interface{})
-		data["query"] = com.Query
-		data["set"] = com.Set
-		data["unset"] = com.Unset
-		blockdb := mongoutils.InitMgo(url, BlockDataBase, com.Collection)
-		filter := bson.M{{"op_hash", hash}}
-		if len(com.Set) != 0 {
-			set_update := bson.M{}
-			for k, v := range com.Set {
-				set_update = append(set_update, bson.E{"data." + k, v})
-			}
-			_, err = blockdb.Update(filter, set_update, "set")
-			if err != nil {
-				log.Println("failed to update data.")
-				return err
-			}
 
-		}
-		if len(com.Unset) != 0 {
-			unset_update := bson.M{}
-			for _, k := range com.Unset {
-				unset_update = append(unset_update, bson.E{"data." + k, ""})
-			}
-			_, err = blockdb.Update(filter, unset_update, "unset")
-			if err != nil {
-				log.Println("failed to update data.")
-				return err
-			}
-		}
-		_ = blockdb.Close()
-
-		err = OpRecord(Update, version, hash, com.Collection, timestamp, data, com.PublicKey, com.Signature)
-		if err != nil {
-			return err
-		}
-		err = HistoryRecord(Update, hash, version, com.Collection, timestamp, data, com.PublicKey, com.Signature)
-		if err != nil {
-			return err
-		}
-		err = Audit(Update, hash, com.Collection, timestamp, data, com.PublicKey, com.Signature)
-		if err != nil {
-			return err
-		}
-	} else {
-		log.Println("update permission denied")
+	// permission verification
+	if !t.PermissionVerify(Update, cmd.Collection, cmd.PublicKey) {
+		err = errors.New("user does not have permission to perform updateDoc")
+		logrus.WithError(err).Warn("error on updateDoc")
+		return
 	}
-	return nil
+
+	actionTs := ts()
+	id:=cmd.Query["_hash"]
+	// get current version
+	filter := bson.M{
+		"doc_id": id,
+	}
+	oldVersion,err:=t.GetCurrentVersion(ctx,filter,cmd.Collection)
+	if err != nil {
+		return
+	}
+
+	// TODO: uodate doc info
+	update := bson.M{
+		"version":     oldVersion + 1,
+		"modified_at": actionTs,
+		"modified_by": cmd.PublicKey,
+	}
+	err=t.UpdateDocInfo(ctx,filter,update,cmd.Collection)
+	if err != nil {
+		return
+	}
+
+	// TODO: update doc data
+	//update set
+	if(len(cmd.Set)!=0){
+		set_update:=bson.M{}
+		for k,v:=range cmd.Set{
+			set_update["data."+k]=v
+		}
+		count, err := t.storageExecutor.Update(ctx, t.formatCollectionName(cmd.Collection, DataType),
+			filter, set_update, "set")
+		if err != nil {
+			return
+		}
+		if count != 1 {
+			return fmt.Errorf("unexpected update: results: %d", count)
+		}
+	}
+
+	//update unset
+	if(len(cmd.Unset)!=0){
+		unset_update:=bson.M{}
+		for _,k:=range cmd.Unset{
+			unset_update["data."+k]=""
+		}
+		count, err := t.storageExecutor.Update(ctx, t.formatCollectionName(cmd.Collection, DataType),
+			filter, unset_update, "unset")
+		if err != nil {
+			return
+		}
+		if count != 1 {
+			return fmt.Errorf("unexpected update: results: %d", count)
+		}
+	}
+
+	dataDocCurrentMList, err := t.storageExecutor.Select(ctx,
+		t.formatCollectionName(cmd.Collection, DataType),
+		filter, nil, 1, 0)
+	if err != nil {
+		return
+	}
+	if len(dataDocCurrentMList.Content) == 0 {
+		err = errors.New("data not found: " + cmd.Collection)
+	}
+	dataDocCurrentM := dataDocCurrentMList.Content[0]
+	cur_data:=dataDocCurrentM["data"].(map[string]interface{})
+
+	// TODO: insert doc history
+	historyDoc := HistoryDoc{
+		DocId: id,
+		PublicKey: gcmd.PublicKey,
+		Signature: gcmd.Signature,
+		Timestamp: actionTs,
+
+		Version:    oldVersion + 1,
+		Data: cur_data,
+	}
+	err=t.InsertDocHistory(ctx,historyDoc,cmd.Collection)
+	if err != nil {
+		return
+	}
+
+	// TODO: insert doc oprecord
+	opRecord:=make(map[string]interface{})
+	opRecord["query"]=cmd.Query
+	opRecord["set"]=cmd.Set
+	opRecord["unset"]=cmd.Unset
+
+	opRecordDoc := OpRecordDoc{
+		DocId: id,
+		OpHash:    gcmd.OpHash,
+		PublicKey: gcmd.PublicKey,
+		Signature: gcmd.Signature,
+		Timestamp: actionTs,
+		Operation: cmd.Op,
+
+		Version: oldVersion+1,
+		Data: opRecord,
+	}
+	err=t.InsertOpRecord(ctx,opRecordDoc,cmd.Collection)
+
+	return
 }
 
-func (t *InstructionExecutor) deleteDoc(instruction OpContext) error {
-	com := &DeleteCommand{}
-	err := json.Unmarshal([]byte(instruction), com)
+func (t *InstructionExecutor) deleteDoc(gcmd GeneralCommand) (err error) {
+	ctx, _ := context.WithTimeout(context.Background(), t.Config.WriteTimeout)
+
+	cmd := &DeleteCommand{}
+	err = json.Unmarshal([]byte(gcmd.OpStr), cmd)
 	if err != nil {
-		log.Println("failed to unmarshal delete command.")
+		log.Fatal("failed to unmarshal delete gcmd.")
 		return err
 	}
-	//TODO: Verification of signature
-	//权限验证
-	if Check(Delete, com.Collection, com.PublicKey) {
-		com.Timestamp = timestamp
-		hash := com.Query["op_hash"]
-		data := make(map[string]interface{})
-		data["query"] = com.Query
-		blockdb := mongoutils.InitMgo(url, BlockDataBase, com.Collection)
-		_, err = blockdb.Delete(hash)
-		if err != nil {
-			log.Println("failed to delete data.")
-			return err
-		}
-		_ = blockdb.Close()
 
-		version, err := UpdateInfo(hash)
-		if err != nil {
-			log.Println("failed to update info.")
-			return err
-		}
-		err = OpRecord(Delete, version, hash, com.Collection, timestamp, data, com.PublicKey, com.Signature)
-		if err != nil {
-			return err
-		}
-		err = HistoryRecord(Delete, hash, version, com.Collection, timestamp, nil, com.PublicKey, com.Signature)
-		if err != nil {
-			return err
-		}
-		err = Audit(Delete, hash, com.Collection, timestamp, data, com.PublicKey, com.Signature)
-		if err != nil {
-			return err
-		}
-	} else {
-		log.Println("delete permission denied")
+	// permission verification
+	if !t.PermissionVerify(Delete, cmd.Collection, cmd.PublicKey) {
+		err = errors.New("user does not have permission to perform deleteDoc")
+		logrus.WithError(err).Warn("error on deleteDoc")
+		return
 	}
-	return nil
+
+	actionTs := ts()
+	id:=cmd.Query["_hash"]
+	// get current version
+	filter := bson.M{
+		"doc_id": id,
+	}
+	oldVersion,err:=t.GetCurrentVersion(ctx,filter,cmd.Collection)
+	if err != nil {
+		return
+	}
+
+	// TODO: update doc info
+	update := bson.M{
+		"version":     oldVersion + 1,
+		"modified_at": actionTs,
+		"modified_by": cmd.PublicKey,
+	}
+	err=t.UpdateDocInfo(ctx,filter,update,cmd.Collection)
+	if err != nil {
+		return
+	}
+
+	// TODO: delete doc data
+	count, err := t.storageExecutor.Delete(ctx, t.formatCollectionName(cmd.Collection, DocInfoType), id)
+	if err != nil {
+		return
+	}
+	if count != 1 {
+		return fmt.Errorf("unexpected delete: results: %d", count)
+	}
+
+
+	// TODO: insert doc history
+	historyDoc := HistoryDoc{
+		DocId: id,
+		PublicKey: gcmd.PublicKey,
+		Signature: gcmd.Signature,
+		Timestamp: actionTs,
+
+		Version:    oldVersion + 1,
+		Data: nil,
+	}
+	err=t.InsertDocHistory(ctx,historyDoc,cmd.Collection)
+	if err != nil {
+		return
+	}
+
+	// TODO: insert doc oprecord
+	opRecordDoc := OpRecordDoc{
+		DocId: id,
+		OpHash:    gcmd.OpHash,
+		PublicKey: gcmd.PublicKey,
+		Signature: gcmd.Signature,
+		Timestamp: actionTs,
+		Operation: cmd.Op,
+
+		Version: oldVersion+1,
+		Data: nil,
+	}
+	err=t.InsertOpRecord(ctx,opRecordDoc,cmd.Collection)
+
+	return
 }
+
+
+func (t *InstructionExecutor)InsertOpRecord(ctx context.Context,opRecordDoc OpRecordDoc,coll string)(err error){
+	opRecordDocM, err := toDoc(opRecordDoc)
+	if err != nil {
+		return
+	}
+	_, err = t.storageExecutor.Insert(ctx, t.formatCollectionName(coll, OpRecordType), opRecordDocM)
+	if err != nil {
+		logrus.WithError(err).Error("failed to create data opRecord document: "+coll)
+		// TODO: consider revert the changes or retry or something.
+	}
+	return
+}
+
+func(t *InstructionExecutor)InsertDocHistory(ctx context.Context,historyDoc HistoryDoc,coll string)(err error){
+	historyDocM, err := toDoc(historyDoc)
+	if err != nil {
+		return
+	}
+	_, err = t.storageExecutor.Insert(ctx, t.formatCollectionName(coll, HistoryType), historyDocM)
+	if err != nil {
+		logrus.WithError(err).Error("failed to create data history document: "+coll)
+		// TODO: consider revert the changes or retry or something.
+	}
+	return
+}
+
+func(t *InstructionExecutor)UpdateDocInfo(ctx context.Context,filter bson.M,update bson.M,coll string)(err error){
+	count, err := t.storageExecutor.Update(ctx, t.formatCollectionName(coll, DocInfoType),
+		filter, update, "set")
+	if err != nil {
+		return
+	}
+	if count != 1 {
+		return fmt.Errorf("unexpected update: results: %d", count)
+	}
+	return
+}
+

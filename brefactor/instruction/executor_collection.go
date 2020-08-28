@@ -86,35 +86,9 @@ func (t *InstructionExecutor) createCollection(gcmd GeneralCommand) (err error) 
 		Collection: cmd.Collection,
 		Feature:    cmd.Feature,
 	}
-	masterHistoryDocM, err := toDoc(masterHistoryDoc)
+	err=t.InsertMasterHistory(ctx,masterHistoryDoc)
 	if err != nil {
 		return
-	}
-	_, err = t.storageExecutor.Insert(ctx, t.formatCollectionName(MasterCollection, HistoryType), masterHistoryDocM)
-	if err != nil {
-		logrus.WithError(err).Error("failed to create master history document")
-		// TODO: consider revert the changes or retry or something.
-	}
-
-	// insert master oprecord
-	masterOpRecordDoc := MasterOpRecordDoc{
-		OpHash:    gcmd.OpHash,
-		TxHash:    gcmd.TxHash,
-		PublicKey: gcmd.PublicKey,
-		Signature: gcmd.Signature,
-		Timestamp: ts,
-
-		Collection: cmd.Collection,
-		Feature:    cmd.Feature,
-	}
-	masterOpRecordDocM, err := toDoc(masterOpRecordDoc)
-	if err != nil {
-		return
-	}
-	_, err = t.storageExecutor.Insert(ctx, t.formatCollectionName(MasterCollection, OpRecordType), masterOpRecordDocM)
-	if err != nil {
-		logrus.WithError(err).Error("failed to create master opRecord document")
-		// TODO: consider revert the changes or retry or something.
 	}
 
 	// create master doc info
@@ -142,6 +116,25 @@ func (t *InstructionExecutor) createCollection(gcmd GeneralCommand) (err error) 
 		logrus.WithError(err).Error("failed to init collection")
 		return err
 	}
+
+	// insert master oprecord
+	masterOpRecordDoc := MasterOpRecordDoc{
+		OpHash:    gcmd.OpHash,
+		TxHash:    gcmd.TxHash,
+		PublicKey: gcmd.PublicKey,
+		Signature: gcmd.Signature,
+		Timestamp: ts,
+
+		Collection: cmd.Collection,
+		Feature:    cmd.Feature,
+	}
+	err=t.InsertMasterOpRecord(ctx,masterOpRecordDoc)
+	if err != nil {
+		return
+	}
+
+	//TODO:set collection feature to cache
+
 	return
 }
 
@@ -168,20 +161,10 @@ func (t *InstructionExecutor) updateColl(gcmd GeneralCommand) (err error) {
 	filter := bson.M{
 		"collection": cmd.Collection,
 	}
-	masterDocInfoDocCurrentMList, err := t.storageExecutor.Select(ctx,
-		t.formatCollectionName(MasterCollection, DocInfoType),
-		filter, nil, 1, 0)
+	oldVersion,err:=t.GetCurrentVersion(ctx,filter,MasterCollection)
 	if err != nil {
 		return
 	}
-
-	if len(masterDocInfoDocCurrentMList.Content) == 0 {
-		err = errors.New("master doc info now found: " + cmd.Collection)
-	}
-
-	masterDocInfoDocCurrentM := masterDocInfoDocCurrentMList.Content[0]
-	id = masterDocInfoDocCurrentM["_id"]
-	oldVersion := masterDocInfoDocCurrentM["version"].(int)
 
 	// TODO: update master_docinfo
 	update := bson.M{
@@ -199,44 +182,102 @@ func (t *InstructionExecutor) updateColl(gcmd GeneralCommand) (err error) {
 	}
 
 	// TODO: update master_data
+	update = bson.M{
+		"feature":     cmd.Feature,
+	}
+	count, err = t.storageExecutor.Update(ctx, t.formatCollectionName(MasterCollection, DataType),
+		filter, update, "set")
+	if err != nil {
+		return
+	}
+	if count != 1 {
+		return fmt.Errorf("unexpected update: results: %d", count)
+	}
+
+	masterDataDocCurrentMList, err := t.storageExecutor.Select(ctx,
+		t.formatCollectionName(MasterCollection, DataType),
+		filter, nil, 1, 0)
+	if err != nil {
+		return
+	}
+	if len(masterDataDocCurrentMList.Content) == 0 {
+		err = errors.New("master data not found: " + cmd.Collection)
+	}
+	masterDataDocCurrentM := masterDataDocCurrentMList.Content[0]
+	feature:=masterDataDocCurrentM["feature"].(CollectionFeature)
 
 	// TODO: insert master_history
+	masterHistoryDoc := MasterHistoryDoc{
+		OpHash:    gcmd.OpHash,
+		TxHash:    gcmd.TxHash,
+		PublicKey: gcmd.PublicKey,
+		Signature: gcmd.Signature,
+		Timestamp: actionTs,
+
+		Version:    oldVersion + 1,
+		Collection: cmd.Collection,
+		Feature:    feature,
+	}
+	err=t.InsertMasterHistory(ctx,masterHistoryDoc)
+	if err != nil {
+		return
+	}
 
 	// TODO: insert master_oprecord
+	masterOpRecordDoc := MasterOpRecordDoc{
+		OpHash:    gcmd.OpHash,
+		TxHash:    gcmd.TxHash,
+		PublicKey: gcmd.PublicKey,
+		Signature: gcmd.Signature,
+		Timestamp: actionTs,
 
-	//ok, curColl := UpdateCollectionFeatures(com.Collection, com.Feature)
-	//if ok {
-	//	com.Timestamp = timestamp
-	//	version, err := UpdateInfo(curColl.OpHash)
-	//	if err != nil {
-	//		log.Println("failed to update info.")
-	//		return err
-	//	}
-	//	//update
-	//	filter := bson.M{{"op_hash", curColl.OpHash}}
-	//	colldb := mongoutils.InitMgo(url, BlockDataBase, CollCollection)
-	//	update := bson.M{{"feature", com.Feature}}
-	//	_, err = colldb.Update(filter, update, "set")
-	//	if err != nil {
-	//		log.Fatal("failed to insert data to colldb.")
-	//		return err
-	//	}
-	//	_ = colldb.Close()
-	//
-	//	err = OpRecord(UpdateCollection, version, curColl.OpHash, com.Collection, timestamp, com.Feature, com.PublicKey, com.Signature)
-	//	if err != nil {
-	//		return err
-	//	}
-	//	err = HistoryRecord(UpdateCollection, curColl.OpHash, version, com.Collection, timestamp, curColl.Feature, com.PublicKey, com.Signature)
-	//	if err != nil {
-	//		return err
-	//	}
-	//	err = Audit(UpdateCollection, curColl.OpHash, com.Collection, timestamp, com.Feature, com.PublicKey, com.Signature)
-	//	if err != nil {
-	//		return err
-	//	}
-	//} else {
-	//	log.Println("collection " + com.Collection + " doesn't exist.")
-	//}
+		Collection: cmd.Collection,
+		Feature:    cmd.Feature,
+	}
+	err=t.InsertMasterOpRecord(ctx,masterOpRecordDoc)
+
 	return
+}
+
+func (t *InstructionExecutor)InsertMasterOpRecord(ctx context.Context,masterOpRecordDoc MasterOpRecordDoc)(err error){
+	masterOpRecordDocM, err := toDoc(masterOpRecordDoc)
+	if err != nil {
+		return
+	}
+	_, err = t.storageExecutor.Insert(ctx, t.formatCollectionName(MasterCollection, OpRecordType), masterOpRecordDocM)
+	if err != nil {
+		logrus.WithError(err).Error("failed to create master opRecord document")
+		// TODO: consider revert the changes or retry or something.
+	}
+	return
+}
+
+func (t *InstructionExecutor)InsertMasterHistory(ctx context.Context,masterHistoryDoc MasterHistoryDoc)(err error){
+	masterHistoryDocM, err := toDoc(masterHistoryDoc)
+	if err != nil {
+		return
+	}
+	_, err = t.storageExecutor.Insert(ctx, t.formatCollectionName(MasterCollection, HistoryType), masterHistoryDocM)
+	if err != nil {
+		logrus.WithError(err).Error("failed to create master history document")
+		// TODO: consider revert the changes or retry or something.
+	}
+	return
+}
+
+func(t *InstructionExecutor)GetCurrentVersion(ctx context.Context,filter bson.M,coll string)(cur int,err error){
+	docInfoDocCurrentMList, err := t.storageExecutor.Select(ctx,
+		t.formatCollectionName(coll, DocInfoType),
+		filter, nil, 1, 0)
+	if err != nil {
+		return -1,err
+	}
+	if len(docInfoDocCurrentMList.Content) == 0 {
+		err = errors.New("data doc info not found: " + coll)
+	}
+
+	docInfoDocCurrentM := docInfoDocCurrentMList.Content[0]
+	cur = docInfoDocCurrentM["version"].(int)
+
+	return cur,err
 }
