@@ -5,6 +5,7 @@ import (
 	"github.com/ZhongAnTech/BlockDB/brefactor/plugins/clients/og"
 	"github.com/ZhongAnTech/BlockDB/brefactor/plugins/listeners/web"
 	"github.com/ZhongAnTech/BlockDB/brefactor/storage"
+	"github.com/ZhongAnTech/BlockDB/brefactor/syncer"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"time"
@@ -95,5 +96,16 @@ func (n *BlockDB) Setup() {
 
 	// TODO: Websocket server to receive new sequencer messages. (Ding Qingyun)
 	// BlockchainListener
+	if viper.GetBool("blockchain.og.enable") {
+		os := &syncer.OgChainSyncer{
+			SyncerConfig: syncer.OgChainSyncerConfig{
+				LatestHeightUrl: viper.GetString("blockchain.og.url"),
+				WebsocketUrl: viper.GetString("blockchain.og.wsclient.url"),
+			},
+		}
+		os.Start()
+		n.components = append(n.components, os)
+	}
+
 
 }

@@ -2,12 +2,13 @@ package og
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/ZhongAnTech/BlockDB/brefactor/core_interface"
-	"github.com/ZhongAnTech/BlockDB/brefactor/plugins/serve/mongo"
+	"github.com/ZhongAnTech/BlockDB/brefactor/storage"
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"io/ioutil"
@@ -22,6 +23,8 @@ type OgClientConfig struct {
 	LedgerUrl  string
 	RetryTimes int
 }
+
+
 
 type OgArchiveResponse struct {
 	// TODO: you need to fix the response structure.
@@ -113,8 +116,10 @@ type isOnChain struct {
 
 func (o *OgClient) ConsumeQueue() {
 	// TODO: adapt mongo to
-	mgo := mongo.InitMgo("mongodb://localhost:27017", "test", "dataToOG")
-	mgo2 := mongo.InitMgo("mongodb://localhost:27017", "test", "isOnChain")
+	ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
+	mgo := storage.Connect(ctx,"mongodb://paichepai.win:27017", "test", "", "", "")
+	mgo.CreateCollection(ctx,"dataToOG")
+	mgo.CreateCollection(ctx,"isOnChain")
 outside:
 	for {
 		logrus.WithField("size", len(o.dataChan)).Debug("og queue size")
@@ -122,12 +127,12 @@ outside:
 		case msg := <-o.dataChan:
 			//need to save msg in mongodb
 			fmt.Println(msg)
-			id, err := mgo.Insert(bson.D{
+			id, err := mgo.Insert(ctx,"dataToOG",bson.M{
 				//{"tx_hash",msg.TxHash},
-				{"public_key", msg.PublicKey},
-				{"signature", msg.Signature},
-				{"op_hash", msg.OpHash},
-				{"op_str", msg.Data},
+				"public_key" : msg.PublicKey,
+				"signature" : msg.Signature,
+				"op_hash" : msg.OpHash,
+				"op_str" : msg.Data,
 			})
 			fmt.Println("######", id)
 
@@ -150,10 +155,10 @@ outside:
 						Status: 0,
 					}
 
-					mgo2.Insert(bson.D{
-						{"tx_hash", txHash},
-						{"op_hash", isOn.OpHash},
-						{"status", isOn.Status},
+					mgo.Insert(ctx,"isOnChain",bson.M {
+						"tx_hash" : txHash,
+						"op_hash" : isOn.OpHash,
+						"status" : isOn.Status,
 					})
 				}
 
@@ -166,7 +171,7 @@ outside:
 				} else {
 					logrus.WithField("response", resData).Debug("got response")
 					// TODO: mark this message as "send ok" in your own task db.
-					mgo.Delete(id)
+					mgo.Delete(ctx,"dataToOG",id)
 
 				}
 			}
@@ -184,8 +189,7 @@ outside:
 					Status: 2,
 				}
 
-				mgo3 := mongo.InitMgo("mongodb://localhost:27017", "test", "isOnChain")
-				mgo3.Update(bson.D{{"tx_hash", io.TxHash}, {"op_hash", io.OpHash}, {"status", 0}}, bson.D{{"tx_hash", io.TxHash}, {"op_hash", io.OpHash}, {"status", 2}}, "unset")
+				mgo.Update(ctx,"isOnChain",bson.M{"tx_hash" : io.TxHash, "op_hash" : io.OpHash, "status" : 0}, bson.M{"tx_hash" : io.TxHash, "op_hash" : io.OpHash, "status" : 2},"set")
 
 			}
 			//event.callbackChan <- err
@@ -199,19 +203,22 @@ outside:
 }
 
 func (o *OgClient) EnqueueSendToLedger(command *core_interface.BlockDBMessage) error {
-	mgo := mongo.InitMgo("mongodb://localhost:27017", "test", "dataToOG")
+	ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
+	mgo := storage.Connect(ctx,"mongodb://localhost:27017", "test", "","","")
+	mgo.CreateCollection(ctx,"op")
 	fmt.Println("COMMAND:", command)
 	command.Data = base64.StdEncoding.EncodeToString([]byte(command.Data))
 
 	//取出上链失败的重新上链
-	results, err := mgo.Select(nil, nil, 10, 0)
+	selectResponse, err := mgo.Select(ctx, "op", nil, nil,10,0)
 	if err != nil {
 		fmt.Println("ERR: ", err)
 	}
-	if results.Content != nil {
-		for _, result := range results.Content {
+	if selectResponse.Content != nil {
+		for _, result := range selectResponse.Content {
 			a := core_interface.BlockDBMessage{}
-			json.Unmarshal([]byte(result), &a)
+			bsonBytes, _ := bson.Marshal(result)
+			bson.Unmarshal(bsonBytes, &a)
 			o.dataChan <- &a
 		}
 	}

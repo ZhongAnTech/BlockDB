@@ -10,7 +10,15 @@ type BlockDBCommand interface {
 }
 
 // BLockDBMessage is the enriched message including BlockDBCommand.
-type BlockDBMessage interface {
+//type BlockDBMessage interface {
+//
+//}
+type BlockDBMessage struct {
+	//TxHash string	`json:"tx_hash"`
+	PublicKey string   `public_key`
+	Signature string `signature`
+	OpHash string	`op_hash`
+	Data string	`op_str`
 }
 
 type BlockDBCommandProcessor interface {

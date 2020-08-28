@@ -1,10 +1,12 @@
 package og
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/ZhongAnTech/BlockDB/brefactor/plugins/serve/mongo"
+	"github.com/ZhongAnTech/BlockDB/brefactor/storage"
 	"go.mongodb.org/mongo-driver/bson"
+	"time"
 
 	"sort"
 	"strings"
@@ -115,7 +117,7 @@ func ToStruct(str string) Archives {
 	return archiveMsgs
 }
 
-func test(archiveMsgs []Archive) {
+func Test(archiveMsgs []Archive) {
 	sort.Sort(ByHash{archiveMsgs})
 	for i, v := range archiveMsgs {
 		var op = Op{
@@ -130,32 +132,33 @@ func test(archiveMsgs []Archive) {
 		}
 
 		fmt.Println("op: ", op)
-		mgo := mongo.InitMgo("mongodb://localhost:27017", "test", "op")
-		mgo2 := mongo.InitMgo("mongodb://localhost:27017", "test", "isOnChain")
+
+		ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
+		mgo := storage.Connect(ctx,"mongodb://localhost:27017","test","","","")
 
 		//update := bson.D{{"$set", data}}
-		id, err := mgo.Insert(bson.D{
-			{"is_executed", op.IsExecuted},
-			{"tx_hash", op.TxHash},
-			{"op_hash", op.OpHash},
-			{"public_key", op.PublicKey},
-			{"signature", op.Signature},
-			{"op_str", op.OpStr},
+		id, err := mgo.Insert(ctx,"op",bson.M{
+			"is_executed" : op.IsExecuted,
+			"tx_hash" : op.TxHash,
+			"op_hash" : op.OpHash,
+			"public_key" : op.PublicKey,
+			"signature" : op.Signature,
+			"op_str" : op.OpStr,
 		})
 		fmt.Println(id, err)
 
-		update := bson.D{
-			{"tx_hash", op.TxHash},
-			{"op_hash", op.OpHash},
-			{"status", 0},
+		filter := bson.M{
+			"tx_hash" : op.TxHash,
+			"op_hash" : op.OpHash,
+			"status" : 0,
 		}
 
-		update2 := bson.D{
-			{"tx_hash", op.TxHash},
-			{"op_hash", op.OpHash},
-			{"status", 1},
+		update := bson.M{
+			"tx_hash" : op.TxHash,
+			"op_hash" : op.OpHash,
+			"status" : 1,
 		}
-		mgo2.Update(update, update2, "unset")
+		mgo.Update(ctx,"isOnChain",filter,update,"set")
 	}
 
 }
