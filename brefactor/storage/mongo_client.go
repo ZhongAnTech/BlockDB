@@ -62,7 +62,7 @@ func (mc *MongoClient) Insert(ctx context.Context, collectionName string, val bs
 func (mc *MongoClient) Delete(ctx context.Context, collectionName string, id string) (int64, error) {
 	collect := mc.ensureColl(collectionName)
 
-	filter := bson.M{"_id": id}
+	filter := bson.M{"op_hash": id}
 	count, err := collect.DeleteMany(ctx, filter, nil)
 	if err != nil {
 		logrus.WithError(err).Warn("failed to delete")

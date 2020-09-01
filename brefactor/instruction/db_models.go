@@ -100,3 +100,14 @@ type DocInfoDoc struct {
 	ModifiedAt int64  `json:"modified_at"` // timestamp ms
 	ModifiedBy string `json:"modified_by"`
 }
+
+//Permissions table
+type PermissionsDoc struct {
+	CollectionPrefix []string `json:"collection_prefix"` //可操作的集合前缀
+	Curd []string `json:"curd"`
+	Timestamp string `json:"timestamp"`
+	From string `json:"from"` //权力的来源
+	To string `json:"to"`		//被授予权力的用户
+	PublicKey string `json:"public_key"`
+	Signature string `json:"signature"`
+}
