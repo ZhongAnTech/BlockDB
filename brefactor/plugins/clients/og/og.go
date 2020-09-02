@@ -17,9 +17,14 @@ import (
 	"time"
 )
 
-var sendToExecutor = make(chan interface{}, 100)
+const LOADING = 0
+const LOAD_SUCC = 1
+const LOAD_FAIL = 2
+
+
 
 type OgClientConfig struct {
+	MongoUrl string
 	LedgerUrl  string
 	RetryTimes int
 }
@@ -38,7 +43,7 @@ type TxReq struct {
 
 type OgClient struct {
 	Config OgClientConfig
-
+	storageExecutor core_interface.StorageExecutor
 	dataChan   chan *core_interface.BlockDBMessage
 	quit       chan bool
 	httpClient *http.Client
@@ -91,9 +96,13 @@ func (m *OgClient) Start() {
 	logrus.Info("OgProcessor started")
 	// start consuming queue
 
+
 	go m.ConsumeQueue()
+	go m.Reload()
 
 }
+
+
 
 // createHTTPClient for connection re-use
 func createHTTPClient() *http.Client {
@@ -114,10 +123,32 @@ type isOnChain struct {
 	Status int `json:"status"`
 }
 
+
+func (o *OgClient) Reload() {
+	//取出上链失败的重新上链
+	ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
+
+	mgo := storage.Connect(ctx,o.Config.MongoUrl, "test", "", "", "")
+	selectResponse, err := mgo.Select(ctx, "op", nil, nil,10,0)
+	if err != nil {
+		fmt.Println("ERR: ", err)
+	}
+	if selectResponse.Content != nil {
+		for _, result := range selectResponse.Content {
+			a := core_interface.BlockDBMessage{}
+			bsonBytes, _ := bson.Marshal(result)
+			bson.Unmarshal(bsonBytes, &a)
+			o.dataChan <- &a
+		}
+	}
+
+}
+
 func (o *OgClient) ConsumeQueue() {
 	// TODO: adapt mongo to
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
-	mgo := storage.Connect(ctx,"mongodb://paichepai.win:27017", "test", "", "", "")
+	mgo := storage.Connect(ctx,o.Config.MongoUrl, "test", "", "", "")
+	//mgo3,_:= o.storageExecutor.Insert(ctx,"op",bson.M{})
 	mgo.CreateCollection(ctx,"dataToOG")
 	mgo.CreateCollection(ctx,"isOnChain")
 outside:
@@ -141,18 +172,18 @@ outside:
 			for ; retry < o.Config.RetryTimes; retry++ {
 
 				resData, err = o.sendToLedger(msg)
+				//需要重新上链而非break
 				if resData.Data == nil {
 					fmt.Println(resData.Message)
-					break
-				} else {
 
+				} else {
 					//txhash-ophash 存入isOnchain集合中
 					txHash := resData.Data.(string)
 					fmt.Println(".....", txHash)
 					isOn := &isOnChain{
 						TxHash: txHash,
 						OpHash: msg.OpHash,
-						Status: 0,
+						Status: LOADING,
 					}
 
 					mgo.Insert(ctx,"isOnChain",bson.M {
@@ -186,7 +217,7 @@ outside:
 				io := isOnChain{
 					TxHash: resData.Data.(string),
 					OpHash: msg.OpHash,
-					Status: 2,
+					Status: LOAD_FAIL,
 				}
 
 				mgo.Update(ctx,"isOnChain",bson.M{"tx_hash" : io.TxHash, "op_hash" : io.OpHash, "status" : 0}, bson.M{"tx_hash" : io.TxHash, "op_hash" : io.OpHash, "status" : 2},"set")
@@ -204,24 +235,11 @@ outside:
 
 func (o *OgClient) EnqueueSendToLedger(command *core_interface.BlockDBMessage) error {
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
-	mgo := storage.Connect(ctx,"mongodb://localhost:27017", "test", "","","")
+	mgo := storage.Connect(ctx,o.Config.MongoUrl, "test", "","","")
 	mgo.CreateCollection(ctx,"op")
 	fmt.Println("COMMAND:", command)
 	command.Data = base64.StdEncoding.EncodeToString([]byte(command.Data))
 
-	//取出上链失败的重新上链
-	selectResponse, err := mgo.Select(ctx, "op", nil, nil,10,0)
-	if err != nil {
-		fmt.Println("ERR: ", err)
-	}
-	if selectResponse.Content != nil {
-		for _, result := range selectResponse.Content {
-			a := core_interface.BlockDBMessage{}
-			bsonBytes, _ := bson.Marshal(result)
-			bson.Unmarshal(bsonBytes, &a)
-			o.dataChan <- &a
-		}
-	}
 
 	o.dataChan <- command
 	fmt.Println(len(o.dataChan))

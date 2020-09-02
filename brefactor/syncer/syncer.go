@@ -1,10 +1,12 @@
 package syncer
 
 import (
+	"context"
 	"fmt"
 	"github.com/ZhongAnTech/BlockDB/brefactor/core_interface"
 	"github.com/ZhongAnTech/BlockDB/brefactor/plugins/clients/og"
 	"github.com/gorilla/websocket"
+	"go.mongodb.org/mongo-driver/bson"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -54,7 +56,7 @@ func (o *OgChainSyncer) Start() {
 }
 
 func (o *OgChainSyncer) Stop() {
-	panic("implement me")
+	o.quit <- true
 }
 
 func (o *OgChainSyncer) Name() string {
@@ -145,7 +147,9 @@ func (o *OgChainSyncer) EventChannel() chan int64 {
 	return h
 }
 
-
+type LastHeight struct {
+	height int64
+}
 
 func (o *OgChainSyncer) loop() {
 	for {
@@ -154,10 +158,25 @@ func (o *OgChainSyncer) loop() {
 			return
 		case newHeight := <-o.InfoReceiver.EventChannel():
 			// TODO: compare local max height and sync if behind.
+
+			//假如重新启动，就从数据库里面查之前的高度
+			if o.MaxSyncedHeight == 0 {
+				ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
+				content,err := o.storageExecutor.Select(ctx,"lastHeight",bson.M{},nil,1,0)
+				if err != nil {
+					fmt.Println("can't get lateHeight from db")
+				}
+				for _,v := range content.Content {
+					a := LastHeight{}
+					bsonBytes, _ := bson.Marshal(v)
+					bson.Unmarshal(bsonBytes, &a)
+					o.MaxSyncedHeight = a.height
+				}
+			}
 			if newHeight > o.MaxSyncedHeight {
 				// TODO: sync.
 				for i := o.MaxSyncedHeight + 1; i <= newHeight; i++ {
-					url1 := "http://nbstock.top:30022/transaction_hashes?height=" + strconv.Itoa(int(i))
+					url1 := o.SyncerConfig.LatestHeightUrl + "/transaction_hashes?height=" + strconv.Itoa(int(i))
 					hashes, err := o.QueryTxHashByHeight(url1)
 					if err != nil {
 						fmt.Println("can't get txhash in newHeight-block")
@@ -168,7 +187,7 @@ func (o *OgChainSyncer) loop() {
 						var txDatas []og.Archive
 						for _, v := range hashes {
 							fmt.Println(v)
-							url2 := "http://nbstock.top:30022/transaction?hash=" + v[1:len(v)-1]
+							url2 := o.SyncerConfig.LatestHeightUrl + "/transaction?hash=" + v[1:len(v)-1]
 							txData, err := o.QueryTxByHash(url2)
 							if err != nil {
 								fmt.Println("query tx by hash fail..")
@@ -183,6 +202,9 @@ func (o *OgChainSyncer) loop() {
 						}
 						og.Test(txDatas)
 					}
+					ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
+					//将此时的高度替换旧的存入数据库中
+					o.storageExecutor.Update(ctx,"lastHeight",bson.M{"lastHeigh":o.MaxSyncedHeight},bson.M{"lastHeight":newHeight},"unset")
 					o.MaxSyncedHeight = newHeight
 				}
 			}
@@ -195,7 +217,7 @@ func (o *OgChainSyncer) loop() {
 			for {
 				time.Sleep(10*time.Second)
 				latestHeight,err := o.QueryHeight()
-				url1 := "http://nbstock.top:30022/transaction_hashes?height=" + strconv.Itoa(int(latestHeight))
+				url1 := o.SyncerConfig.LatestHeightUrl + "/transaction_hashes?height=" + strconv.Itoa(int(latestHeight))
 				hashes, err := o.QueryTxHashByHeight(url1)
 				if err != nil {
 					fmt.Println("can't get txhash in newHeight-block")
@@ -206,7 +228,7 @@ func (o *OgChainSyncer) loop() {
 					var txDatas []og.Archive
 					for _, v := range hashes {
 						fmt.Println(v)
-						url2 := "http://nbstock.top:30022/transaction?hash=" + v[1:len(v)-1]
+						url2 := o.SyncerConfig.LatestHeightUrl + "/transaction?hash=" + v[1:len(v)-1]
 						txData, err := o.QueryTxByHash(url2)
 						if err != nil {
 							fmt.Println("query tx by hash fail..")
