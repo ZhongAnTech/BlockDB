@@ -8,6 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"log"
+	"strconv"
 )
 
 // InitCollection setup all necessary collections to support business
@@ -82,7 +83,7 @@ func (t *InstructionExecutor) createCollection(gcmd GeneralCommand) (err error) 
 		Signature: gcmd.Signature,
 		Timestamp: ts,
 
-		Version:    version,
+		Version:    int64(version),
 		Collection: cmd.Collection,
 		Feature:    cmd.Feature,
 	}
@@ -94,7 +95,7 @@ func (t *InstructionExecutor) createCollection(gcmd GeneralCommand) (err error) 
 	// create master doc info
 	masterDocInfoDoc := MasterDocInfoDoc{
 		Collection: cmd.Collection,
-		Version:    version,
+		Version:    int64(version),
 		CreatedAt:  ts,
 		CreatedBy:  gcmd.PublicKey,
 		ModifiedAt: ts,
@@ -174,12 +175,15 @@ func (t *InstructionExecutor) updateColl(gcmd GeneralCommand) (err error) {
 	}
 	count, err := t.storageExecutor.Update(ctx, t.formatCollectionName(MasterCollection, DocInfoType),
 		filter, update, "set")
+	fmt.Println("count: "+strconv.FormatInt(count,10))
 	if err != nil {
 		return
 	}
 	if count != 1 {
 		return fmt.Errorf("unexpected update: results: %d", count)
 	}
+	fmt.Println("succeed update master info")
+	fmt.Println(cmd.Feature)
 
 	// TODO: update master_data
 	update = bson.M{
@@ -193,6 +197,7 @@ func (t *InstructionExecutor) updateColl(gcmd GeneralCommand) (err error) {
 	if count != 1 {
 		return fmt.Errorf("unexpected update: results: %d", count)
 	}
+	fmt.Println("succeed update master data")
 
 	masterDataDocCurrentMList, err := t.storageExecutor.Select(ctx,
 		t.formatCollectionName(MasterCollection, DataType),
@@ -265,7 +270,7 @@ func (t *InstructionExecutor)InsertMasterHistory(ctx context.Context,masterHisto
 	return
 }
 
-func(t *InstructionExecutor)GetCurrentVersion(ctx context.Context,filter bson.M,coll string)(cur int,err error){
+func(t *InstructionExecutor)GetCurrentVersion(ctx context.Context,filter bson.M,coll string)(cur int64,err error){
 	docInfoDocCurrentMList, err := t.storageExecutor.Select(ctx,
 		t.formatCollectionName(coll, DocInfoType),
 		filter, nil, 1, 0)
@@ -277,7 +282,7 @@ func(t *InstructionExecutor)GetCurrentVersion(ctx context.Context,filter bson.M,
 	}
 
 	docInfoDocCurrentM := docInfoDocCurrentMList.Content[0]
-	cur = docInfoDocCurrentM["version"].(int)
+	cur = docInfoDocCurrentM["version"].(int64)
 
 	return cur,err
 }

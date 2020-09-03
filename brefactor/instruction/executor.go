@@ -31,7 +31,7 @@ var NamePattern = map[string]string{
 var InitCollections = []string{DataType, HistoryType, OpRecordType, DocInfoType}
 
 var (
-	filter = bson.M{"is_executed": "false"}
+	filter = bson.M{"is_executed": false}
 	sort   = bson.M{"oder": 1}
 )
 
@@ -124,12 +124,11 @@ func (t *InstructionExecutor) doBatchJob() (didSome bool) {
 			logrus.WithField("value", ins).Warn("failed to unmarshal op")
 			continue
 		}
+		//fmt.Println("OpStr: "+op.OpStr)
 
 		// TODO: signature validation (do not validate inside executor)
 		// TODO: hash validation
 
-		//opStrObject["op_hash"] = op.OpHash
-		//opStrObject["signature"] = op.Signature
 
 		err = t.Execute(GeneralCommand{
 			TxHash:    op.TxHash,

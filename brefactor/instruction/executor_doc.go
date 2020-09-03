@@ -52,7 +52,7 @@ func (t *InstructionExecutor) insertDoc(gcmd GeneralCommand) (err error) {
 	// TODO: insert doc info
 	docInfoDoc := DocInfoDoc{
 		DocId: gcmd.OpHash,
-		Version:    version,
+		Version:    int64(version),
 		CreatedAt:  ts,
 		CreatedBy:  gcmd.PublicKey,
 		ModifiedAt: ts,
@@ -74,7 +74,7 @@ func (t *InstructionExecutor) insertDoc(gcmd GeneralCommand) (err error) {
 		PublicKey: gcmd.PublicKey,
 		Signature: gcmd.Signature,
 		Timestamp: ts,
-		Version: version,
+		Version: int64(version),
 		Data:cmd.Data,
 	}
 	err=t.InsertDocHistory(ctx,historyDoc,cmd.Collection)
@@ -89,7 +89,7 @@ func (t *InstructionExecutor) insertDoc(gcmd GeneralCommand) (err error) {
 		PublicKey: gcmd.PublicKey,
 		Signature: gcmd.Signature,
 		Timestamp: ts,
-		Version: version,
+		Version: int64(version),
 		Operation: cmd.Op,
 		Data: cmd.Data,
 	}
@@ -147,7 +147,7 @@ func (t *InstructionExecutor) updateDoc(gcmd GeneralCommand) (err error)  {
 		count, err := t.storageExecutor.Update(ctx, t.formatCollectionName(cmd.Collection, DataType),
 			filter, set_update, "set")
 		if err != nil {
-			return
+			return err
 		}
 		if count != 1 {
 			return fmt.Errorf("unexpected update: results: %d", count)
@@ -163,7 +163,7 @@ func (t *InstructionExecutor) updateDoc(gcmd GeneralCommand) (err error)  {
 		count, err := t.storageExecutor.Update(ctx, t.formatCollectionName(cmd.Collection, DataType),
 			filter, unset_update, "unset")
 		if err != nil {
-			return
+			return err
 		}
 		if count != 1 {
 			return fmt.Errorf("unexpected update: results: %d", count)
