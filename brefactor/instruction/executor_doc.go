@@ -237,12 +237,17 @@ func (t *InstructionExecutor) deleteDoc(gcmd GeneralCommand) (err error) {
 	}
 
 	actionTs := ts()
-	id:=cmd.Query["_hash"]
+	op_hash:=cmd.Query["_hash"]
 	// get current version
 	filter := bson.M{
-		"doc_id": id,
+		"doc_id": op_hash,
 	}
 	oldVersion,err:=t.GetCurrentVersion(ctx,filter,cmd.Collection)
+	if err != nil {
+		return
+	}
+
+	id,err:=t.GetDocId(ctx,filter,cmd.Collection)
 	if err != nil {
 		return
 	}
@@ -259,7 +264,7 @@ func (t *InstructionExecutor) deleteDoc(gcmd GeneralCommand) (err error) {
 	}
 
 	// TODO: delete doc data
-	count, err := t.storageExecutor.Delete(ctx, t.formatCollectionName(cmd.Collection, DocInfoType), id)
+	count, err := t.storageExecutor.Delete(ctx, t.formatCollectionName(cmd.Collection, DataType), id)
 	if err != nil {
 		return
 	}
@@ -270,7 +275,7 @@ func (t *InstructionExecutor) deleteDoc(gcmd GeneralCommand) (err error) {
 
 	// TODO: insert doc history
 	historyDoc := HistoryDoc{
-		DocId: id,
+		DocId: op_hash,
 		PublicKey: gcmd.PublicKey,
 		Signature: gcmd.Signature,
 		Timestamp: actionTs,
@@ -285,7 +290,7 @@ func (t *InstructionExecutor) deleteDoc(gcmd GeneralCommand) (err error) {
 
 	// TODO: insert doc oprecord
 	opRecordDoc := OpRecordDoc{
-		DocId: id,
+		DocId: op_hash,
 		OpHash:    gcmd.OpHash,
 		PublicKey: gcmd.PublicKey,
 		Signature: gcmd.Signature,
@@ -339,3 +344,19 @@ func(t *InstructionExecutor)UpdateDocInfo(ctx context.Context,filter bson.M,upda
 	return
 }
 
+func(t *InstructionExecutor)GetDocId(ctx context.Context,filter bson.M,coll string)(id string,err error){
+	docDataDocCurrentMList, err := t.storageExecutor.Select(ctx,
+		t.formatCollectionName(coll, DataType),
+		filter, nil, 1, 0)
+	if err != nil {
+		return "",err
+	}
+	if len(docDataDocCurrentMList.Content) == 0 {
+		err = errors.New("data doc not found: " + coll)
+	}
+
+	docInfoDocCurrentM := docDataDocCurrentMList.Content[0]
+	id = docInfoDocCurrentM["_id"].(string)
+
+	return id,err
+}
