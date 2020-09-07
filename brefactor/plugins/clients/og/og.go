@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ZhongAnTech/BlockDB/brefactor/core_interface"
-	"github.com/ZhongAnTech/BlockDB/brefactor/storage"
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"io/ioutil"
@@ -127,9 +126,7 @@ type isOnChain struct {
 func (o *OgClient) Reload() {
 	//取出上链失败的重新上链
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
-
-	mgo := storage.Connect(ctx,o.Config.MongoUrl, "test", "", "", "")
-	selectResponse, err := mgo.Select(ctx, "op", nil, nil,10,0)
+	selectResponse, err := o.storageExecutor.Select(ctx, "dataToOG", nil, nil,10,0)
 	if err != nil {
 		fmt.Println("ERR: ", err)
 	}
@@ -141,16 +138,14 @@ func (o *OgClient) Reload() {
 			o.dataChan <- &a
 		}
 	}
-
 }
 
 func (o *OgClient) ConsumeQueue() {
 	// TODO: adapt mongo to
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
-	mgo := storage.Connect(ctx,o.Config.MongoUrl, "test", "", "", "")
 	//mgo3,_:= o.storageExecutor.Insert(ctx,"op",bson.M{})
-	mgo.CreateCollection(ctx,"dataToOG")
-	mgo.CreateCollection(ctx,"isOnChain")
+	o.storageExecutor.CreateCollection(ctx,"dataToOG")
+	o.storageExecutor.CreateCollection(ctx,"isOnChain")
 outside:
 	for {
 		logrus.WithField("size", len(o.dataChan)).Debug("og queue size")
@@ -158,7 +153,7 @@ outside:
 		case msg := <-o.dataChan:
 			//need to save msg in mongodb
 			fmt.Println(msg)
-			id, err := mgo.Insert(ctx,"dataToOG",bson.M{
+			id, err := o.storageExecutor.Insert(ctx,"dataToOG",bson.M{
 				//{"tx_hash",msg.TxHash},
 				"public_key" : msg.PublicKey,
 				"signature" : msg.Signature,
@@ -186,7 +181,7 @@ outside:
 						Status: LOADING,
 					}
 
-					mgo.Insert(ctx,"isOnChain",bson.M {
+					o.storageExecutor.Insert(ctx,"isOnChain",bson.M {
 						"tx_hash" : txHash,
 						"op_hash" : isOn.OpHash,
 						"status" : isOn.Status,
@@ -202,7 +197,7 @@ outside:
 				} else {
 					logrus.WithField("response", resData).Debug("got response")
 					// TODO: mark this message as "send ok" in your own task db.
-					mgo.Delete(ctx,"dataToOG",id)
+					o.storageExecutor.Delete(ctx,"dataToOG",id)
 
 				}
 			}
@@ -220,7 +215,7 @@ outside:
 					Status: LOAD_FAIL,
 				}
 
-				mgo.Update(ctx,"isOnChain",bson.M{"tx_hash" : io.TxHash, "op_hash" : io.OpHash, "status" : 0}, bson.M{"tx_hash" : io.TxHash, "op_hash" : io.OpHash, "status" : 2},"set")
+				o.storageExecutor.Update(ctx,"isOnChain",bson.M{"tx_hash" : io.TxHash, "op_hash" : io.OpHash, "status" : 0}, bson.M{"tx_hash" : io.TxHash, "op_hash" : io.OpHash, "status" : 2},"set")
 
 			}
 			//event.callbackChan <- err
@@ -235,12 +230,9 @@ outside:
 
 func (o *OgClient) EnqueueSendToLedger(command *core_interface.BlockDBMessage) error {
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
-	mgo := storage.Connect(ctx,o.Config.MongoUrl, "test", "","","")
-	mgo.CreateCollection(ctx,"op")
+	o.storageExecutor.CreateCollection(ctx,"op")
 	fmt.Println("COMMAND:", command)
 	command.Data = base64.StdEncoding.EncodeToString([]byte(command.Data))
-
-
 	o.dataChan <- command
 	fmt.Println(len(o.dataChan))
 	return nil

@@ -1,14 +1,8 @@
 package og
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/ZhongAnTech/BlockDB/brefactor/storage"
-	"go.mongodb.org/mongo-driver/bson"
-	"time"
-
-	"sort"
 	"strings"
 )
 
@@ -20,7 +14,7 @@ type allData struct {
 }
 
 type Archive struct {
-	Height       int      `json:"hieght"`
+	Height       int      `json:"height"`
 	Type         int      `json:"type"`
 	TxHash       string   `json:"tx_hash"`
 	OpHash       string   `json:"op_hash"`
@@ -51,17 +45,7 @@ type ByHash struct {
 	Archives
 }
 
-func (s ByHash) Len() int {
-	panic("implement me")
-}
 
-func (s ByHash) Swap(i, j int) {
-	panic("implement me")
-}
-
-func (s ByHash) Less(i, j int) bool {
-	return s.Archives[i].TxHash < s.Archives[j].TxHash
-}
 
 func ToStruct(str string) Archives {
 	s1 := strings.Split(str, "},")
@@ -117,48 +101,5 @@ func ToStruct(str string) Archives {
 	return archiveMsgs
 }
 
-func Test(archiveMsgs []Archive) {
-	sort.Sort(ByHash{archiveMsgs})
-	for i, v := range archiveMsgs {
-		var op = Op{
-			Order:      i,
-			Height:     v.Height,
-			IsExecuted: false,
-			TxHash:     v.TxHash,
-			OpHash:     v.OpHash,
-			PublicKey:  v.PublicKey,
-			Signature:  v.Signature,
-			OpStr:      v.Data,
-		}
 
-		fmt.Println("op: ", op)
 
-		ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
-		mgo := storage.Connect(ctx,"mongodb://localhost:27017","test","","","")
-
-		//update := bson.D{{"$set", data}}
-		id, err := mgo.Insert(ctx,"op",bson.M{
-			"is_executed" : op.IsExecuted,
-			"tx_hash" : op.TxHash,
-			"op_hash" : op.OpHash,
-			"public_key" : op.PublicKey,
-			"signature" : op.Signature,
-			"op_str" : op.OpStr,
-		})
-		fmt.Println(id, err)
-
-		filter := bson.M{
-			"tx_hash" : op.TxHash,
-			"op_hash" : op.OpHash,
-			"status" : 0,
-		}
-
-		update := bson.M{
-			"tx_hash" : op.TxHash,
-			"op_hash" : op.OpHash,
-			"status" : 1,
-		}
-		mgo.Update(ctx,"isOnChain",filter,update,"set")
-	}
-
-}
