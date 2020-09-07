@@ -11,6 +11,7 @@ import (
 func (t *InstructionExecutor) PermissionVerify(op string, collection string, publickey string) (bool,error) {
 	ctx, _ := context.WithTimeout(context.Background(), t.Config.ReadTimeout)
 	//切换集合至permissions集合
+	t.storageExecutor.Delete()
 	response,err:=t.storageExecutor.Select(ctx,"permissions",bson.M{"To":publickey},bson.M{},1,0)
 	if err!=nil {
 		logrus.WithError(err)
