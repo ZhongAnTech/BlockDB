@@ -26,7 +26,7 @@ func (t *InstructionExecutor) createIndex(gcmd GeneralCommand) (err error) {
 
 	// TODO: create index
 	for k,v:=range cmd.Index{
-		_, err = t.storageExecutor.CreateIndex(ctx,cmd.Collection,k,"data."+v)
+		_, err = t.storageExecutor.CreateIndex(ctx,t.formatCollectionName(cmd.Collection, DataType),k,"data."+v)
 		if err != nil {
 			logrus.WithError(err).Error("failed to create index on document: "+cmd.Collection)
 			// TODO: consider revert the changes or retry or something.
@@ -56,7 +56,7 @@ func (t *InstructionExecutor) dropIndex(gcmd GeneralCommand) (err error) {
 
 	//TODO: drop index
 	for k:=range cmd.Index{
-		err = t.storageExecutor.DropIndex(ctx,cmd.Collection,k)
+		err = t.storageExecutor.DropIndex(ctx,t.formatCollectionName(cmd.Collection, DataType),k)
 		if err != nil {
 			logrus.WithError(err).Error("failed to drop index on document: "+cmd.Collection)
 			// TODO: consider revert the changes or retry or something.

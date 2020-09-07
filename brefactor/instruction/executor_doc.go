@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"log"
@@ -180,7 +181,19 @@ func (t *InstructionExecutor) updateDoc(gcmd GeneralCommand) (err error)  {
 		err = errors.New("data not found: " + cmd.Collection)
 	}
 	dataDocCurrentM := dataDocCurrentMList.Content[0]
-	cur_data:=dataDocCurrentM["data"].(map[string]interface{})
+	data, err := bson.Marshal(dataDocCurrentM)
+	if err != nil {
+		logrus.WithField("value", dataDocCurrentM).Warn("failed to marshal data")
+		return
+	}
+
+	// do deserialization and validations
+	dataDoc := DataDoc{}
+	err = bson.Unmarshal(data, &dataDoc)
+	if err != nil {
+		logrus.WithField("value", dataDocCurrentM).Warn("failed to unmarshal data")
+		return
+	}
 
 	// TODO: insert doc history
 	historyDoc := HistoryDoc{
@@ -190,7 +203,7 @@ func (t *InstructionExecutor) updateDoc(gcmd GeneralCommand) (err error)  {
 		Timestamp: actionTs,
 
 		Version:    oldVersion + 1,
-		Data: cur_data,
+		Data: dataDoc.Data,
 	}
 	err=t.InsertDocHistory(ctx,historyDoc,cmd.Collection)
 	if err != nil {
@@ -288,6 +301,9 @@ func (t *InstructionExecutor) deleteDoc(gcmd GeneralCommand) (err error) {
 		return
 	}
 
+	opRecord:=make(map[string]interface{})
+	opRecord["query"]=cmd.Query
+
 	// TODO: insert doc oprecord
 	opRecordDoc := OpRecordDoc{
 		DocId: op_hash,
@@ -298,7 +314,7 @@ func (t *InstructionExecutor) deleteDoc(gcmd GeneralCommand) (err error) {
 		Operation: cmd.Op,
 
 		Version: oldVersion+1,
-		Data: nil,
+		Data: opRecord,
 	}
 	err=t.InsertOpRecord(ctx,opRecordDoc,cmd.Collection)
 
@@ -356,7 +372,7 @@ func(t *InstructionExecutor)GetDocId(ctx context.Context,filter bson.M,coll stri
 	}
 
 	docInfoDocCurrentM := docDataDocCurrentMList.Content[0]
-	id = docInfoDocCurrentM["_id"].(string)
+	id = docInfoDocCurrentM["_id"].(primitive.ObjectID).Hex()
 
 	return id,err
 }

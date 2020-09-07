@@ -1,12 +1,12 @@
 package instruction
 
 import (
-	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"os"
+	"github.com/ZhongAnTech/BlockDB/brefactor/storage"
 	"testing"
+	"time"
 )
 
 func TestUnmarshal(t *testing.T) {
@@ -27,35 +27,15 @@ func TestUnmarshal(t *testing.T) {
 }
 
 func TestInstruction(t *testing.T) {
-	file, err := os.Open("./instructions.txt")
-	if err != nil {
-		fmt.Println("文件打开失败 = ", err)
-	}
-	defer file.Close()
-	reader := bufio.NewReader(file)
-	i := 0
-	for {
-		str, err := reader.ReadString('\n') //读到一个换行就结束
-		if err == io.EOF {                  //io.EOF 表示文件的末尾
-			break
-		}
-		if len(str) == 0 {
-			break
-		}
-		//fmt.Print(str)
-		c := make(map[string]interface{})
-		err = json.Unmarshal([]byte(str), &c)
-		if err != nil {
-			panic(err)
-		}
-		op := c["op"].(string)
-		err = Execute(op, str)
-		if err != nil {
-			panic(err)
-		}
-		i++
-		fmt.Println(i)
+	ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
+	var executor InstructionExecutor
+	executor.InitDefault()
+	executor.Config=InstructionExecutorConfig{10,time.Second*3,time.Second*3,time.Second*3}
+	executor.storageExecutor=storage.Connect(ctx, "mongodb://127.0.0.1:27017", "block", "", "", "")
+	//err:=executor.InitCollection(ctx,MasterCollection)
+	//if err != nil{
+	//	fmt.Println(err)
+	//}
+	executor.doBatchJob()
 
-	}
-	fmt.Println("文件读取结束...")
 }

@@ -8,7 +8,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"log"
-	"strconv"
 )
 
 // InitCollection setup all necessary collections to support business
@@ -175,15 +174,12 @@ func (t *InstructionExecutor) updateColl(gcmd GeneralCommand) (err error) {
 	}
 	count, err := t.storageExecutor.Update(ctx, t.formatCollectionName(MasterCollection, DocInfoType),
 		filter, update, "set")
-	fmt.Println("count: "+strconv.FormatInt(count,10))
 	if err != nil {
 		return
 	}
 	if count != 1 {
 		return fmt.Errorf("unexpected update: results: %d", count)
 	}
-	fmt.Println("succeed update master info")
-	fmt.Println(cmd.Feature)
 
 	// TODO: update master_data
 	update = bson.M{
@@ -197,7 +193,6 @@ func (t *InstructionExecutor) updateColl(gcmd GeneralCommand) (err error) {
 	if count != 1 {
 		return fmt.Errorf("unexpected update: results: %d", count)
 	}
-	fmt.Println("succeed update master data")
 
 	masterDataDocCurrentMList, err := t.storageExecutor.Select(ctx,
 		t.formatCollectionName(MasterCollection, DataType),
@@ -209,7 +204,19 @@ func (t *InstructionExecutor) updateColl(gcmd GeneralCommand) (err error) {
 		err = errors.New("master data not found: " + cmd.Collection)
 	}
 	masterDataDocCurrentM := masterDataDocCurrentMList.Content[0]
-	feature:=masterDataDocCurrentM["feature"].(CollectionFeature)
+	data, err := bson.Marshal(masterDataDocCurrentM)
+	if err != nil {
+		logrus.WithField("value", masterDataDocCurrentM).Warn("failed to marshal master data")
+		return
+	}
+
+	// do deserialization and validations
+	masterDataDoc := MasterDataDoc{}
+	err = bson.Unmarshal(data, &masterDataDoc)
+	if err != nil {
+		logrus.WithField("value", masterDataDocCurrentM).Warn("failed to unmarshal master data")
+		return
+	}
 
 	// TODO: insert master_history
 	masterHistoryDoc := MasterHistoryDoc{
@@ -221,7 +228,7 @@ func (t *InstructionExecutor) updateColl(gcmd GeneralCommand) (err error) {
 
 		Version:    oldVersion + 1,
 		Collection: cmd.Collection,
-		Feature:    feature,
+		Feature:    masterDataDoc.Feature,
 	}
 	err=t.InsertMasterHistory(ctx,masterHistoryDoc)
 	if err != nil {
