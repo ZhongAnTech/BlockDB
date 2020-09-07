@@ -15,6 +15,7 @@ type WebsocketInfoReceiver struct {
 }
 
 func (w WebsocketInfoReceiver) Start() {
+	w.Connect()
 }
 
 func (w WebsocketInfoReceiver) Stop() {
