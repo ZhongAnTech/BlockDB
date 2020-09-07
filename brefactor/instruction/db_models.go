@@ -110,3 +110,16 @@ type DocInfoDoc struct {
 	ModifiedAt int64  `bson:"modified_at"` // timestamp ms
 	ModifiedBy string `bson:"modified_by"`
 }
+
+//Permissions table
+type PermissionsDoc struct {
+	CollectionPrefix []PermissionsDetail `json:"collection_prefix"` //可操作的集合前缀
+	Curd []PermissionsDetail`json:"curd"`
+	To string `json:"to"`		//被授予权力的用户
+}
+type PermissionsDetail struct {
+	Collection string `json:"collection"`
+	From string `json:"from"`
+	Isawared bool `json:"isawared"`
+	Timestamp int64 `json:"timestamp"`
+}
