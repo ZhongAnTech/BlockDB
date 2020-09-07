@@ -125,6 +125,17 @@ func (t *InstructionExecutor) PermissionGrant(permissions string,collection stri
 			logrus.WithError(err).Warn("结构体转化失败失败")
 			return false,err;
 		}
+		//判断是否已经有这个权限了
+		for _, value:=range Doc.CollectionPrefix{
+			if(strings.HasPrefix(collection,value.Collection+"_")){
+				return true,nil
+			}
+		}
+		for _, value:=range Doc.Curd{
+			if(strings.HasPrefix(collection,value.Collection+"_") && value.Isawared==isawared){
+				return true,nil
+			}
+		}
 		var add PermissionsDetail
 		if permissions =="create" || permissions=="update" || permissions=="read" || permissions=="delete"{
 			add.Collection =collection
