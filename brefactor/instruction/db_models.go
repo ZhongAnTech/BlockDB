@@ -103,11 +103,13 @@ type DocInfoDoc struct {
 
 //Permissions table
 type PermissionsDoc struct {
-	CollectionPrefix []string `json:"collection_prefix"` //可操作的集合前缀
-	Curd []string `json:"curd"`
-	Timestamp string `json:"timestamp"`
-	From string `json:"from"` //权力的来源
+	CollectionPrefix []PermissionsDetail `json:"collection_prefix"` //可操作的集合前缀
+	Curd []PermissionsDetail`json:"curd"`
 	To string `json:"to"`		//被授予权力的用户
-	PublicKey string `json:"public_key"`
-	Signature string `json:"signature"`
+}
+type PermissionsDetail struct {
+	Collection string `json:"collection"`
+	From string `json:"from"`
+	Isawared bool `json:"isawared"`
+	Timestamp int64 `json:"timestamp"`
 }

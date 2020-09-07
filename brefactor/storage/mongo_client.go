@@ -61,8 +61,7 @@ func (mc *MongoClient) Insert(ctx context.Context, collectionName string, val bs
 //根据key value删除集合下所有符合条件的文档
 func (mc *MongoClient) Delete(ctx context.Context, collectionName string, id string) (int64, error) {
 	collect := mc.ensureColl(collectionName)
-
-	filter := bson.M{"op_hash": id}
+	filter := bson.M{"_id": id}
 	count, err := collect.DeleteMany(ctx, filter, nil)
 	if err != nil {
 		logrus.WithError(err).Warn("failed to delete")
@@ -137,7 +136,7 @@ func (mc *MongoClient) Update(ctx context.Context, collectionName string, filter
 			return
 		}
 	}
-	count = result.UpsertedCount
+	count = result.ModifiedCount
 	return
 }
 func (mc *MongoClient) CreateCollection(ctx context.Context, collectionName string) (err error) {
