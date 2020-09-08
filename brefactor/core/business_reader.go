@@ -92,3 +92,11 @@ func (s *BusinessReader) CurrentValue(ctx context.Context, opHash string) ([]byt
 	version := info["latest_version"]
 	return s.Value(ctx, opHash, version.(int))
 }
+
+func (s *BusinessReader) Query(ctx context.Context, filter map[string]interface{}) ([]byte, error) {
+	response, err := s.storageExecutor.Select(ctx, "sample_collection", filter, nil, 0, 0)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(response.Content)
+}
