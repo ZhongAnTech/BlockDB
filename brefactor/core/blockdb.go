@@ -95,16 +95,25 @@ func (n *BlockDB) Setup() {
 	// LedgerSyncer
 
 	// TODO: Websocket server to receive new sequencer messages. (Ding Qingyun)
-	// BlockchainListener
+	// HeightSyncer
 	if viper.GetBool("blockchain.og.enable") {
-		os := &syncer.OgChainSyncer{
+		s := &syncer.OgChainSyncer{
 			SyncerConfig: syncer.OgChainSyncerConfig{
 				LatestHeightUrl: viper.GetString("blockchain.og.url"),
 				WebsocketUrl: viper.GetString("blockchain.og.wsclient.url"),
 			},
 		}
-		os.Start()
-		n.components = append(n.components, os)
+		s.Start()
+		n.components = append(n.components, s)
+	}
+
+	//websocket
+	if viper.GetBool("blockchain.og.enable") {
+		ws := &syncer.WebsocketInfoReceiver{
+				WebsocketUrl: viper.GetString("blockchain.og.wsclient.url"),
+		}
+		ws.Start()
+		n.components = append(n.components, ws)
 	}
 
 
