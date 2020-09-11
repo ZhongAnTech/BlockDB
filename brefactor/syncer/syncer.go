@@ -229,7 +229,6 @@ func (o *OgChainSyncer) loop() {
 			return
 		case newHeight := <-o.InfoReceiver.EventChannel():
 			// TODO: compare local max height and sync if behind.
-
 			//newHeight来自ws推送
 			//假如重新启动，就从数据库里面查之前的高度
 			if o.MaxSyncedHeight == 0 {
@@ -255,7 +254,7 @@ func (o *OgChainSyncer) loop() {
 				fmt.Println("fail to query new height")
 			}
 			o.HeightCompensate(latestHeight)
-			t.Reset(0)g
+			t.Reset(0)
 		default:
 
 			// TODO: (priority) pull latest height and sync: startup, every 5 min (in case websocket is down)

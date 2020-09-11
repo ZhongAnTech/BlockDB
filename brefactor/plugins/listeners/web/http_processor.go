@@ -328,6 +328,35 @@ func (l *HttpListener) CurrentValue(rw http.ResponseWriter, req *http.Request) {
 	rw.Write(data)
 }
 
+func (l *HttpListener) Query(rw http.ResponseWriter, req *http.Request) {
+	msg, err := ioutil.ReadAll(req.Body)
+	if err != nil || len(msg) == 0 {
+		http.Error(rw, "miss content", http.StatusBadRequest)
+		return
+	}
+
+	input := struct {
+		Filter map[string]interface{} `json:"filter"`
+	}{}
+
+	err = json.Unmarshal(msg, &input)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+	ctx, _ := context.WithTimeout(req.Context(), time.Millisecond*time.Duration(l.Config.DBActionTimeoutMs))
+
+	data, err := l.BusinessReader.Query(ctx, input.Filter)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	rw.Write(data)
+}
+
 func (l *HttpListener) Health(rw http.ResponseWriter, req *http.Request) {
 	// TODO: do real health check
 	rw.WriteHeader(http.StatusOK)
