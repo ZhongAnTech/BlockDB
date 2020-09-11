@@ -221,8 +221,9 @@ func (o *OgChainSyncer) HeightCompensate(newHeight int64) {
 }
 
 func (o *OgChainSyncer) loop() {
+	t := time.NewTimer(60*time.Second)
 	for {
-		t := time.NewTimer(60*time.Second)
+
 		select {
 		case <-o.quit:
 			return
@@ -245,6 +246,7 @@ func (o *OgChainSyncer) loop() {
 				}
 			}
 			o.HeightCompensate(newHeight)
+			t.Reset(0)
 
 		//case <- timeout (be very careful when you handle the timer reset to prevent blocking.)
 		case <- t.C:
@@ -253,8 +255,9 @@ func (o *OgChainSyncer) loop() {
 				fmt.Println("fail to query new height")
 			}
 			o.HeightCompensate(latestHeight)
+			t.Reset(0)g
 		default:
-			t.Stop()
+
 			// TODO: (priority) pull latest height and sync: startup, every 5 min (in case websocket is down)
 			// TODO: receive websocket push (receive latest height) and sync (realtime)
 
