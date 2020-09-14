@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ZhongAnTech/BlockDB/brefactor/core_interface"
 	"github.com/ZhongAnTech/BlockDB/brefactor/plugins/clients/og"
+	"github.com/annchain/commongo/utilfuncs"
 	"go.mongodb.org/mongo-driver/bson"
 	"io/ioutil"
 	"net/http"
@@ -165,7 +166,7 @@ func (o *OgChainSyncer) HeightCompensate(newHeight int64) {
 					if err != nil {
 						fmt.Println("query tx by hash fail..")
 					}
-					if strings.Contains(txData, "\"type\":4") == true {
+					if strings.Contains(txData, ":4") == true {
 						//验签，反序列化放到结构体，存入数据库
 						txDatas = og.ToStruct(txData)
 						fmt.Println("type=4---------", txData)
@@ -223,6 +224,8 @@ func (o *OgChainSyncer) HeightCompensate(newHeight int64) {
 func (o *OgChainSyncer) loop() {
 	t := time.NewTimer(60*time.Second)
 	for {
+		utilfuncs.DrainTimer(t)
+		t.Reset(60*time.Second)
 
 		select {
 		case <-o.quit:
@@ -245,7 +248,6 @@ func (o *OgChainSyncer) loop() {
 				}
 			}
 			o.HeightCompensate(newHeight)
-			t.Reset(0)
 
 		//case <- timeout (be very careful when you handle the timer reset to prevent blocking.)
 		case <- t.C:
@@ -254,7 +256,7 @@ func (o *OgChainSyncer) loop() {
 				fmt.Println("fail to query new height")
 			}
 			o.HeightCompensate(latestHeight)
-			t.Reset(0)
+
 		default:
 
 			// TODO: (priority) pull latest height and sync: startup, every 5 min (in case websocket is down)

@@ -26,3 +26,7 @@
     idle_connection_seconds = 5
     buffer_size = 100
     retry_times = 5
+
+        [blockchain.og.wsclient]
+        enabled = true
+        url="ws://47.100.122.212:30023/ws"
