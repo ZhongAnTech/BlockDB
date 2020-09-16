@@ -117,7 +117,7 @@ func (t *InstructionExecutor) updateDoc(gcmd GeneralCommand) (err error)  {
 	}
 
 	actionTs := ts()
-	id:=cmd.Query["_hash"]
+	id:=cmd.Query["op_hash"]
 	// get current version
 	filter := bson.M{
 		"doc_id": id,
@@ -250,7 +250,7 @@ func (t *InstructionExecutor) deleteDoc(gcmd GeneralCommand) (err error) {
 	}
 
 	actionTs := ts()
-	op_hash:=cmd.Query["_hash"]
+	op_hash:=cmd.Query["op_hash"]
 	// get current version
 	filter := bson.M{
 		"doc_id": op_hash,

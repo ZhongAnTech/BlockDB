@@ -32,7 +32,7 @@ var InitCollections = []string{DataType, HistoryType, OpRecordType, DocInfoType}
 
 var (
 	filter = bson.M{"is_executed": false}
-	sort   = bson.M{"oder": 1}
+	sort   = bson.M{"order": 1}
 )
 
 type InstructionExecutorConfig struct {

@@ -57,7 +57,8 @@ type AuditModel struct {
 // OpDoc is the task queue filled by chain sync.
 // update OpDoc once the OpDoc is executed.
 type OpDoc struct {
-	Order      int32  `bson:"oder"`
+	Order      int32  `bson:"order"`
+	Height	   int32  `bson:"height"`
 	IsExecuted bool   `bson:"is_executed"`
 	TxHash     string `bson:"tx_hash"`
 	OpHash     string `bson:"op_hash"`
