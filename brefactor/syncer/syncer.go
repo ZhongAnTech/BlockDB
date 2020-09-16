@@ -215,7 +215,7 @@ func (o *OgChainSyncer) HeightCompensate(newHeight int64) {
 			}
 			ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
 			//将此时的高度替换旧的存入数据库中
-			o.storageExecutor.Update(ctx,"lastHeight",bson.M{"lastHeigh":o.MaxSyncedHeight},bson.M{"lastHeight":newHeight},"unset")
+			o.storageExecutor.Update(ctx,"lastHeight",bson.M{"lastHeigh":o.MaxSyncedHeight},bson.M{"lastHeight":newHeight},"set")
 			o.MaxSyncedHeight = newHeight
 		}
 	}

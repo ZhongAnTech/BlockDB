@@ -230,7 +230,7 @@ outside:
 
 func (o *OgClient) EnqueueSendToLedger(command *core_interface.BlockDBMessage) error {
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
-	o.storageExecutor.CreateCollection(ctx,"op")
+	o.storageExecutor.CreateCollection(ctx,"_op")
 	fmt.Println("COMMAND:", command)
 	command.Data = base64.StdEncoding.EncodeToString([]byte(command.Data))
 	o.dataChan <- command
