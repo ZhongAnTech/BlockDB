@@ -14,7 +14,7 @@
 package cmd
 
 import (
-	"github.com/ZhongAnTech/BlockDB/brefactor/core"
+	"github.com/ZhongAnTech/BlockDB/brefactor/node"
 	"github.com/annchain/commongo/mylog"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -43,7 +43,7 @@ var runCmd = &cobra.Command{
 
 		// init logs and other facilities before the node starts
 
-		blockdb := core.BlockDB{}
+		blockdb := node.BlockDB{}
 		blockdb.InitDefault()
 		blockdb.Setup()
 		blockdb.Start()

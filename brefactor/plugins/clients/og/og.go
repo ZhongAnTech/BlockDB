@@ -12,7 +12,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"time"
 )
 
@@ -20,15 +19,11 @@ const LOADING = 0
 const LOAD_SUCC = 1
 const LOAD_FAIL = 2
 
-
-
 type OgClientConfig struct {
-	MongoUrl string
+	MongoUrl   string
 	LedgerUrl  string
 	RetryTimes int
 }
-
-
 
 type OgArchiveResponse struct {
 	// TODO: you need to fix the response structure.
@@ -41,24 +36,12 @@ type TxReq struct {
 }
 
 type OgClient struct {
-	Config OgClientConfig
-	storageExecutor core_interface.StorageExecutor
+	Config          *OgClientConfig
+	StorageExecutor core_interface.StorageExecutor
+
 	dataChan   chan *core_interface.BlockDBMessage
 	quit       chan bool
 	httpClient *http.Client
-}
-
-func NewOgClient(config OgClientConfig) *OgClient {
-	_, err := url.Parse(config.LedgerUrl)
-	if err != nil {
-		panic(err)
-	}
-	return &OgClient{
-		Config:     config,
-		dataChan:   make(chan *core_interface.BlockDBMessage),
-		quit:       make(chan bool),
-		httpClient: createHTTPClient(),
-	}
 }
 
 func (m *OgClient) Name() string {
@@ -95,13 +78,10 @@ func (m *OgClient) Start() {
 	logrus.Info("OgProcessor started")
 	// start consuming queue
 
-
 	go m.ConsumeQueue()
 	go m.Reload()
 
 }
-
-
 
 // createHTTPClient for connection re-use
 func createHTTPClient() *http.Client {
@@ -122,11 +102,10 @@ type isOnChain struct {
 	Status int `json:"status"`
 }
 
-
 func (o *OgClient) Reload() {
 	//取出上链失败的重新上链
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
-	selectResponse, err := o.storageExecutor.Select(ctx, "dataToOG", nil, nil,10,0)
+	selectResponse, err := o.StorageExecutor.Select(ctx, "dataToOG", nil, nil, 10, 0)
 	if err != nil {
 		fmt.Println("ERR: ", err)
 	}
@@ -143,9 +122,9 @@ func (o *OgClient) Reload() {
 func (o *OgClient) ConsumeQueue() {
 	// TODO: adapt mongo to
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
-	//mgo3,_:= o.storageExecutor.Insert(ctx,"op",bson.M{})
-	o.storageExecutor.CreateCollection(ctx,"dataToOG")
-	o.storageExecutor.CreateCollection(ctx,"isOnChain")
+	//mgo3,_:= o.StorageExecutor.Insert(ctx,"op",bson.M{})
+	o.StorageExecutor.CreateCollection(ctx, "dataToOG")
+	o.StorageExecutor.CreateCollection(ctx, "isOnChain")
 outside:
 	for {
 		logrus.WithField("size", len(o.dataChan)).Debug("og queue size")
@@ -153,12 +132,12 @@ outside:
 		case msg := <-o.dataChan:
 			//need to save msg in mongodb
 			fmt.Println(msg)
-			id, err := o.storageExecutor.Insert(ctx,"dataToOG",bson.M{
+			id, err := o.StorageExecutor.Insert(ctx, "dataToOG", bson.M{
 				//{"tx_hash",msg.TxHash},
-				"public_key" : msg.PublicKey,
-				"signature" : msg.Signature,
-				"op_hash" : msg.OpHash,
-				"op_str" : msg.Data,
+				"public_key": msg.PublicKey,
+				"signature":  msg.Signature,
+				"op_hash":    msg.OpHash,
+				"op_str":     msg.Data,
 			})
 			fmt.Println("######", id)
 
@@ -181,10 +160,10 @@ outside:
 						Status: LOADING,
 					}
 
-					o.storageExecutor.Insert(ctx,"isOnChain",bson.M {
-						"tx_hash" : txHash,
-						"op_hash" : isOn.OpHash,
-						"status" : isOn.Status,
+					o.StorageExecutor.Insert(ctx, "isOnChain", bson.M{
+						"tx_hash": txHash,
+						"op_hash": isOn.OpHash,
+						"status":  isOn.Status,
 					})
 				}
 
@@ -197,7 +176,7 @@ outside:
 				} else {
 					logrus.WithField("response", resData).Debug("got response")
 					// TODO: mark this message as "send ok" in your own task db.
-					o.storageExecutor.Delete(ctx,"dataToOG",id)
+					o.StorageExecutor.Delete(ctx, "dataToOG", id)
 
 				}
 			}
@@ -215,7 +194,7 @@ outside:
 					Status: LOAD_FAIL,
 				}
 
-				o.storageExecutor.Update(ctx,"isOnChain",bson.M{"tx_hash" : io.TxHash, "op_hash" : io.OpHash, "status" : 0}, bson.M{"tx_hash" : io.TxHash, "op_hash" : io.OpHash, "status" : 2},"set")
+				o.StorageExecutor.Update(ctx, "isOnChain", bson.M{"tx_hash": io.TxHash, "op_hash": io.OpHash, "status": 0}, bson.M{"tx_hash": io.TxHash, "op_hash": io.OpHash, "status": 2}, "set")
 
 			}
 			//event.callbackChan <- err
@@ -230,7 +209,7 @@ outside:
 
 func (o *OgClient) EnqueueSendToLedger(command *core_interface.BlockDBMessage) error {
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
-	o.storageExecutor.CreateCollection(ctx,"_op")
+	o.StorageExecutor.CreateCollection(ctx, "_op")
 	fmt.Println("COMMAND:", command)
 	command.Data = base64.StdEncoding.EncodeToString([]byte(command.Data))
 	o.dataChan <- command

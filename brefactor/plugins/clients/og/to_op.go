@@ -45,8 +45,6 @@ type ByHash struct {
 	Archives
 }
 
-
-
 func ToStruct(str string) Archives {
 	s1 := strings.Split(str, "},")
 	s2 := strings.Split(s1[0], "\"data\": {")
@@ -100,6 +98,3 @@ func ToStruct(str string) Archives {
 	fmt.Println("archiveMsgs: ", archiveMsgs)
 	return archiveMsgs
 }
-
-
-

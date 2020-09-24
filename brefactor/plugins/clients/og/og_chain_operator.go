@@ -10,9 +10,9 @@ import (
 
 type OgChainOperator struct {
 	GetHeightUrl string
-	Height int64
-	TxHash []string
-	Tx string
+	Height       int64
+	TxHash       []string
+	Tx           string
 }
 
 func (oc *OgChainOperator) QueryHeight() (int64, error) {
@@ -43,13 +43,13 @@ func (oc *OgChainOperator) QueryTxHashByHeight(url string) ([]string, error) {
 	str := string(body)
 	fmt.Println(str)
 	if strings.Contains(str, "\"hashes\":null") {
-		return nil,err
+		return nil, err
 	}
 	s1 := strings.Split(str, "[")
 	s2 := strings.Split(s1[1], "]")
 	s3 := strings.Split(s2[0], ",")
 	fmt.Println(s3)
-	return s3,err
+	return s3, err
 }
 func (oc *OgChainOperator) QueryTxByHash(url string) (string, error) {
 	response, err := http.Get(url)
@@ -61,5 +61,5 @@ func (oc *OgChainOperator) QueryTxByHash(url string) (string, error) {
 	fmt.Println(body)
 	str := string(body)
 	fmt.Println(str)
-	return str,err
+	return str, err
 }

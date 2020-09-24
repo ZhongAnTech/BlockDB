@@ -3,8 +3,9 @@ module github.com/ZhongAnTech/BlockDB/brefactor
 go 1.13
 
 require (
-	github.com/annchain/commongo v0.0.8
+	github.com/annchain/commongo v0.0.10
 	github.com/gorilla/mux v1.7.4
+	github.com/gorilla/websocket v1.4.2
 	github.com/kr/pretty v0.2.0 // indirect
 	github.com/libp2p/go-libp2p-core v0.6.1
 	github.com/sirupsen/logrus v1.6.0

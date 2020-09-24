@@ -15,10 +15,10 @@ type BlockDBCommand interface {
 //}
 type BlockDBMessage struct {
 	//TxHash string	`json:"tx_hash"`
-	PublicKey string   `public_key`
+	PublicKey string `public_key`
 	Signature string `signature`
-	OpHash string	`op_hash`
-	Data string	`op_str`
+	OpHash    string `op_hash`
+	Data      string `op_str`
 }
 
 type BlockDBCommandProcessor interface {

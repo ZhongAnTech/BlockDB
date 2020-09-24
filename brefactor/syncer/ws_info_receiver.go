@@ -10,8 +10,8 @@ import (
 
 type WebsocketInfoReceiver struct {
 	WebsocketUrl string
-	HeightChan chan int64
-	quit chan bool
+	HeightChan   chan int64
+	quit         chan bool
 }
 
 func (w WebsocketInfoReceiver) Start() {
@@ -28,7 +28,7 @@ func (w WebsocketInfoReceiver) Name() string {
 
 func (w WebsocketInfoReceiver) Connect() {
 	dialer := websocket.Dialer{}
-	connect, _, err := dialer.Dial(w.WebsocketUrl,nil)
+	connect, _, err := dialer.Dial(w.WebsocketUrl, nil)
 	if nil != err {
 		log.Print(err)
 	}

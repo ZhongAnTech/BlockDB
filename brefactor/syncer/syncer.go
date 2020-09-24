@@ -32,7 +32,7 @@ type ChainEventReceiver interface {
 
 type OgChainSyncerConfig struct {
 	LatestHeightUrl string
-	WebsocketUrl string
+	WebsocketUrl    string
 }
 
 type OgChainSyncer struct {
@@ -45,7 +45,7 @@ type OgChainSyncer struct {
 	ChainOperator   ChainOperator
 	InfoReceiver    ChainEventReceiver
 	storageExecutor core_interface.StorageExecutor
-	quit chan bool
+	quit            chan bool
 }
 
 type Archive struct {
@@ -117,13 +117,13 @@ func (o *OgChainSyncer) QueryTxHashByHeight(url string) ([]string, error) {
 	str := string(body)
 	fmt.Println(str)
 	if strings.Contains(str, "\"hashes\":null") {
-		return nil,err
+		return nil, err
 	}
 	s1 := strings.Split(str, "[")
 	s2 := strings.Split(s1[1], "]")
 	s3 := strings.Split(s2[0], ",")
 	fmt.Println(s3)
-	return s3,err
+	return s3, err
 
 }
 
@@ -137,10 +137,8 @@ func (o *OgChainSyncer) QueryTxByHash(url string) (string, error) {
 	fmt.Println(body)
 	str := string(body)
 	fmt.Println(str)
-	return str,err
+	return str, err
 }
-
-
 
 type LastHeight struct {
 	height int64
@@ -189,43 +187,43 @@ func (o *OgChainSyncer) HeightCompensate(newHeight int64) {
 
 					ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
 					//update := bson.D{{"$set", data}}
-					id, err := o.storageExecutor.Insert(ctx,"op",bson.M{
-						"is_executed" : op.IsExecuted,
-						"tx_hash" : op.TxHash,
-						"op_hash" : op.OpHash,
-						"public_key" : op.PublicKey,
-						"signature" : op.Signature,
-						"op_str" : op.OpStr,
+					id, err := o.storageExecutor.Insert(ctx, "op", bson.M{
+						"is_executed": op.IsExecuted,
+						"tx_hash":     op.TxHash,
+						"op_hash":     op.OpHash,
+						"public_key":  op.PublicKey,
+						"signature":   op.Signature,
+						"op_str":      op.OpStr,
 					})
 					fmt.Println(id, err)
 
 					filter := bson.M{
-						"tx_hash" : op.TxHash,
-						"op_hash" : op.OpHash,
-						"status" : 0,
+						"tx_hash": op.TxHash,
+						"op_hash": op.OpHash,
+						"status":  0,
 					}
 
 					update := bson.M{
-						"tx_hash" : op.TxHash,
-						"op_hash" : op.OpHash,
-						"status" : 1,
+						"tx_hash": op.TxHash,
+						"op_hash": op.OpHash,
+						"status":  1,
 					}
-					o.storageExecutor.Update(ctx,"isOnChain",filter,update,"set")
+					o.storageExecutor.Update(ctx, "isOnChain", filter, update, "set")
 				}
 			}
 			ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
 			//将此时的高度替换旧的存入数据库中
-			o.storageExecutor.Update(ctx,"lastHeight",bson.M{"lastHeigh":o.MaxSyncedHeight},bson.M{"lastHeight":newHeight},"set")
+			o.storageExecutor.Update(ctx, "lastHeight", bson.M{"lastHeigh": o.MaxSyncedHeight}, bson.M{"lastHeight": newHeight}, "set")
 			o.MaxSyncedHeight = newHeight
 		}
 	}
 }
 
 func (o *OgChainSyncer) loop() {
-	t := time.NewTimer(60*time.Second)
+	t := time.NewTimer(60 * time.Second)
 	for {
 		utilfuncs.DrainTimer(t)
-		t.Reset(60*time.Second)
+		t.Reset(60 * time.Second)
 
 		select {
 		case <-o.quit:
@@ -236,11 +234,11 @@ func (o *OgChainSyncer) loop() {
 			//假如重新启动，就从数据库里面查之前的高度
 			if o.MaxSyncedHeight == 0 {
 				ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
-				content,err := o.storageExecutor.Select(ctx,"lastHeight",bson.M{},nil,1,0)
+				content, err := o.storageExecutor.Select(ctx, "lastHeight", bson.M{}, nil, 1, 0)
 				if err != nil {
 					fmt.Println("can't get lateHeight from db")
 				}
-				for _,v := range content.Content {
+				for _, v := range content.Content {
 					a := LastHeight{}
 					bsonBytes, _ := bson.Marshal(v)
 					bson.Unmarshal(bsonBytes, &a)
@@ -250,8 +248,8 @@ func (o *OgChainSyncer) loop() {
 			o.HeightCompensate(newHeight)
 
 		//case <- timeout (be very careful when you handle the timer reset to prevent blocking.)
-		case <- t.C:
-			latestHeight,err := o.QueryHeight()
+		case <-t.C:
+			latestHeight, err := o.QueryHeight()
 			if err != nil {
 				fmt.Println("fail to query new height")
 			}

@@ -1,7 +1,8 @@
-package core
+package node
 
 import (
 	"context"
+	"github.com/ZhongAnTech/BlockDB/brefactor/core"
 	"github.com/ZhongAnTech/BlockDB/brefactor/plugins/clients/og"
 	"github.com/ZhongAnTech/BlockDB/brefactor/plugins/listeners/web"
 	"github.com/ZhongAnTech/BlockDB/brefactor/storage"
@@ -12,7 +13,7 @@ import (
 )
 
 type BlockDB struct {
-	components []Component
+	components []core.Component
 }
 
 func (n *BlockDB) Start() {
@@ -41,7 +42,7 @@ func (n *BlockDB) Name() string {
 }
 
 func (n *BlockDB) InitDefault() {
-	n.components = []Component{}
+	n.components = []core.Component{}
 }
 
 func (n *BlockDB) Setup() {
@@ -49,23 +50,26 @@ func (n *BlockDB) Setup() {
 
 	// External data storage facilities. (Dai Yunong)
 	// StorageExecutor
-	connectionTimeout := time.Millisecond * time.Duration(viper.GetInt("storage.timeout_connect_ms"))
+	connectionTimeout := time.Millisecond * time.Duration(viper.GetInt("storage.mongodb.timeout_connect_ms"))
 	ctx, _ := context.WithTimeout(context.Background(), connectionTimeout)
-	storageExecutor := storage.Connect(ctx,
+	storageExecutor, err := storage.Connect(ctx,
 		viper.GetString("storage.mongodb.url"),
 		viper.GetString("storage.mongodb.database"),
 		viper.GetString("storage.mongodb.auth_method"),
 		viper.GetString("storage.mongodb.username"),
 		viper.GetString("storage.mongodb.password"))
+	if err != nil {
+		logrus.WithError(err).Fatal("failed to connect to mongodb")
+	}
 
 	// will inject the storageExecutor to multiple components.
-	businessReader := NewBusinessReader(storageExecutor)
+	businessReader := core.NewBusinessReader(storageExecutor)
 
 	// TODO: RPC server to receive http requests. (Wu Jianhang)
 	if viper.GetBool("listener.http.enabled") {
 		p := &web.HttpListener{
-			JsonCommandParser:       &DefaultJsonCommandParser{}, // parse json command
-			BlockDBCommandProcessor: &DefaultCommandProcessor{},  // send command to ledger
+			JsonCommandParser:       &core.DefaultJsonCommandParser{}, // parse json command
+			BlockDBCommandProcessor: &core.DefaultCommandProcessor{},  // send command to ledger
 			Config: web.HttpListenerConfig{
 				Port:              viper.GetInt("listener.http.port"),
 				MaxContentLength:  viper.GetInt64("listener.http.max_content_length"),
@@ -83,10 +87,11 @@ func (n *BlockDB) Setup() {
 
 	// TODO: Blockchain sender to send new tx consumed from queue. (Ding Qingyun)
 	client := &og.OgClient{
-		Config: og.OgClientConfig{
+		Config: &og.OgClientConfig{
 			LedgerUrl:  viper.GetString("blockchain.og.url"),
 			RetryTimes: viper.GetInt("blockchain.og.retry_times"),
 		},
+		StorageExecutor: storageExecutor,
 	}
 	client.InitDefault()
 	n.components = append(n.components, client)
@@ -100,7 +105,7 @@ func (n *BlockDB) Setup() {
 		s := &syncer.OgChainSyncer{
 			SyncerConfig: syncer.OgChainSyncerConfig{
 				LatestHeightUrl: viper.GetString("blockchain.og.url"),
-				WebsocketUrl: viper.GetString("blockchain.og.wsclient.url"),
+				WebsocketUrl:    viper.GetString("blockchain.og.wsclient.url"),
 			},
 		}
 		s.Start()
@@ -110,11 +115,10 @@ func (n *BlockDB) Setup() {
 	//websocket
 	if viper.GetBool("blockchain.og.enable") {
 		ws := &syncer.WebsocketInfoReceiver{
-				WebsocketUrl: viper.GetString("blockchain.og.wsclient.url"),
+			WebsocketUrl: viper.GetString("blockchain.og.wsclient.url"),
 		}
 		ws.Start()
 		n.components = append(n.components, ws)
 	}
-
 
 }

@@ -129,7 +129,6 @@ func (t *InstructionExecutor) doBatchJob() (didSome bool) {
 		// TODO: signature validation (do not validate inside executor)
 		// TODO: hash validation
 
-
 		err = t.Execute(GeneralCommand{
 			TxHash:    op.TxHash,
 			OpHash:    op.OpHash,

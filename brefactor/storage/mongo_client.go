@@ -9,7 +9,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/x/bsonx"
-	"log"
 )
 
 type MongoClient struct {
@@ -18,7 +17,7 @@ type MongoClient struct {
 	collections map[string]*mongo.Collection // for collection cache
 }
 
-func Connect(ctx context.Context, url string, databaseName string, authMechanism string, username string, password string) *MongoClient {
+func Connect(ctx context.Context, url string, databaseName string, authMechanism string, username string, password string) (*MongoClient, error) {
 	clientOptions := options.Client().ApplyURI(url)
 	if authMechanism != "" {
 		clientOptions.Auth = &options.Credential{
@@ -33,18 +32,19 @@ func Connect(ctx context.Context, url string, databaseName string, authMechanism
 
 	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
+
 	err = client.Ping(ctx, nil)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	mClient := &MongoClient{}
 	mClient.client = client
 	mClient.database = client.Database(databaseName)
 	mClient.collections = make(map[string]*mongo.Collection)
-	return mClient
+	return mClient, nil
 }
 
 //插入一个文档
@@ -61,7 +61,7 @@ func (mc *MongoClient) Insert(ctx context.Context, collectionName string, val bs
 //根据key value删除集合下所有符合条件的文档
 func (mc *MongoClient) Delete(ctx context.Context, collectionName string, id string) (int64, error) {
 	collect := mc.ensureColl(collectionName)
-	id1,_ := primitive.ObjectIDFromHex(id)
+	id1, _ := primitive.ObjectIDFromHex(id)
 	filter := bson.M{"_id": id1}
 	count, err := collect.DeleteMany(ctx, filter, nil)
 	if err != nil {
@@ -87,7 +87,7 @@ func (mc *MongoClient) Select(ctx context.Context, collectionName string,
 		err := result.Decode(&ele)
 		if err != nil {
 			logrus.WithError(err).Warn("failed to select")
-			return response,err
+			return response, err
 		}
 		response.Content = append(response.Content, ele)
 	}
@@ -109,7 +109,7 @@ func (mc *MongoClient) SelectById(ctx context.Context, collectionName string, id
 		err := result.Decode(&ele)
 		if err != nil {
 			logrus.WithError(err).Warn("failed to select")
-			return response,err
+			return response, err
 		}
 		response.Content = append(response.Content, ele)
 	}

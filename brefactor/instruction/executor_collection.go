@@ -86,7 +86,7 @@ func (t *InstructionExecutor) createCollection(gcmd GeneralCommand) (err error) 
 		Collection: cmd.Collection,
 		Feature:    cmd.Feature,
 	}
-	err=t.InsertMasterHistory(ctx,masterHistoryDoc)
+	err = t.InsertMasterHistory(ctx, masterHistoryDoc)
 	if err != nil {
 		return
 	}
@@ -128,7 +128,7 @@ func (t *InstructionExecutor) createCollection(gcmd GeneralCommand) (err error) 
 		Collection: cmd.Collection,
 		Feature:    cmd.Feature,
 	}
-	err=t.InsertMasterOpRecord(ctx,masterOpRecordDoc)
+	err = t.InsertMasterOpRecord(ctx, masterOpRecordDoc)
 	if err != nil {
 		return
 	}
@@ -151,9 +151,13 @@ func (t *InstructionExecutor) updateColl(gcmd GeneralCommand) (err error) {
 	actionTs := ts()
 
 	// permission verification
-	if !t.PermissionVerify(UpdateCollection, cmd.Collection, cmd.PublicKey) {
-		err = errors.New("user does not have permission to perform updateColl")
+	ok, err := t.PermissionVerify(UpdateCollection, cmd.Collection, cmd.PublicKey)
+	if err != nil {
 		logrus.WithError(err).Warn("error on updateColl")
+		return
+	}
+	if !ok {
+		err = errors.New("user does not have permission to perform updateColl")
 		return
 	}
 
@@ -161,7 +165,7 @@ func (t *InstructionExecutor) updateColl(gcmd GeneralCommand) (err error) {
 	filter := bson.M{
 		"collection": cmd.Collection,
 	}
-	oldVersion,err:=t.GetCurrentVersion(ctx,filter,MasterCollection)
+	oldVersion, err := t.GetCurrentVersion(ctx, filter, MasterCollection)
 	if err != nil {
 		return
 	}
@@ -183,7 +187,7 @@ func (t *InstructionExecutor) updateColl(gcmd GeneralCommand) (err error) {
 
 	// TODO: update master_data
 	update = bson.M{
-		"feature":     cmd.Feature,
+		"feature": cmd.Feature,
 	}
 	count, err = t.storageExecutor.Update(ctx, t.formatCollectionName(MasterCollection, DataType),
 		filter, update, "set")
@@ -230,7 +234,7 @@ func (t *InstructionExecutor) updateColl(gcmd GeneralCommand) (err error) {
 		Collection: cmd.Collection,
 		Feature:    masterDataDoc.Feature,
 	}
-	err=t.InsertMasterHistory(ctx,masterHistoryDoc)
+	err = t.InsertMasterHistory(ctx, masterHistoryDoc)
 	if err != nil {
 		return
 	}
@@ -246,12 +250,12 @@ func (t *InstructionExecutor) updateColl(gcmd GeneralCommand) (err error) {
 		Collection: cmd.Collection,
 		Feature:    cmd.Feature,
 	}
-	err=t.InsertMasterOpRecord(ctx,masterOpRecordDoc)
+	err = t.InsertMasterOpRecord(ctx, masterOpRecordDoc)
 
 	return
 }
 
-func (t *InstructionExecutor)InsertMasterOpRecord(ctx context.Context,masterOpRecordDoc MasterOpRecordDoc)(err error){
+func (t *InstructionExecutor) InsertMasterOpRecord(ctx context.Context, masterOpRecordDoc MasterOpRecordDoc) (err error) {
 	masterOpRecordDocM, err := toDoc(masterOpRecordDoc)
 	if err != nil {
 		return
@@ -264,7 +268,7 @@ func (t *InstructionExecutor)InsertMasterOpRecord(ctx context.Context,masterOpRe
 	return
 }
 
-func (t *InstructionExecutor)InsertMasterHistory(ctx context.Context,masterHistoryDoc MasterHistoryDoc)(err error){
+func (t *InstructionExecutor) InsertMasterHistory(ctx context.Context, masterHistoryDoc MasterHistoryDoc) (err error) {
 	masterHistoryDocM, err := toDoc(masterHistoryDoc)
 	if err != nil {
 		return
@@ -277,12 +281,12 @@ func (t *InstructionExecutor)InsertMasterHistory(ctx context.Context,masterHisto
 	return
 }
 
-func(t *InstructionExecutor)GetCurrentVersion(ctx context.Context,filter bson.M,coll string)(cur int64,err error){
+func (t *InstructionExecutor) GetCurrentVersion(ctx context.Context, filter bson.M, coll string) (cur int64, err error) {
 	docInfoDocCurrentMList, err := t.storageExecutor.Select(ctx,
 		t.formatCollectionName(coll, DocInfoType),
 		filter, nil, 1, 0)
 	if err != nil {
-		return -1,err
+		return -1, err
 	}
 	if len(docInfoDocCurrentMList.Content) == 0 {
 		err = errors.New("data doc info not found: " + coll)
@@ -291,5 +295,5 @@ func(t *InstructionExecutor)GetCurrentVersion(ctx context.Context,filter bson.M,
 	docInfoDocCurrentM := docInfoDocCurrentMList.Content[0]
 	cur = docInfoDocCurrentM["version"].(int64)
 
-	return cur,err
+	return cur, err
 }
