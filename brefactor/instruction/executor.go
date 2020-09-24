@@ -31,8 +31,8 @@ var NamePattern = map[string]string{
 var InitCollections = []string{DataType, HistoryType, OpRecordType, DocInfoType}
 
 var (
-	filter = bson.M{"is_executed": "false"}
-	sort   = bson.M{"oder": 1}
+	filter = bson.M{"is_executed": false}
+	sort   = bson.M{"order": 1}
 )
 
 type InstructionExecutorConfig struct {
@@ -124,12 +124,11 @@ func (t *InstructionExecutor) doBatchJob() (didSome bool) {
 			logrus.WithField("value", ins).Warn("failed to unmarshal op")
 			continue
 		}
+		//fmt.Println("OpStr: "+op.OpStr)
 
 		// TODO: signature validation (do not validate inside executor)
 		// TODO: hash validation
 
-		//opStrObject["op_hash"] = op.OpHash
-		//opStrObject["signature"] = op.Signature
 
 		err = t.Execute(GeneralCommand{
 			TxHash:    op.TxHash,
@@ -176,7 +175,7 @@ func (t *InstructionExecutor) Execute(command GeneralCommand) (err error) {
 }
 
 //更新Coll
-func (t *InstructionExecutor) UpdateCollectionFeatures(collection string, feature map[string]interface{}) (bool, *CollectionCommand) {
+/*func (t *InstructionExecutor) UpdateCollectionFeatures(collection string, feature map[string]interface{}) (bool, *CollectionCommand) {
 	flag := false
 	var curColl *CollectionCommand
 	for _, curColl = range Colls {
@@ -191,7 +190,7 @@ func (t *InstructionExecutor) UpdateCollectionFeatures(collection string, featur
 		}
 	}
 	return flag, curColl
-}
+}*/
 
 //更新Indexes
 //func UpdateCollectionIndex(collection string,index map[string]string)(bool,*IndexCommand){

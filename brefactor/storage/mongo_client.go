@@ -87,7 +87,7 @@ func (mc *MongoClient) Select(ctx context.Context, collectionName string,
 		err := result.Decode(&ele)
 		if err != nil {
 			logrus.WithError(err).Warn("failed to select")
-			return
+			return response,err
 		}
 		response.Content = append(response.Content, ele)
 	}
@@ -109,7 +109,7 @@ func (mc *MongoClient) SelectById(ctx context.Context, collectionName string, id
 		err := result.Decode(&ele)
 		if err != nil {
 			logrus.WithError(err).Warn("failed to select")
-			return
+			return response,err
 		}
 		response.Content = append(response.Content, ele)
 	}

@@ -2,103 +2,114 @@ package instruction
 
 // current data
 type MasterDataDoc struct {
-	OpHash     string            `json:"op_hash"`
-	Collection string            `json:"collection"` //操作的数据表
-	Feature    CollectionFeature `json:"feature"`
-	PublicKey  string            `json:"public_key"` //公钥
-	Signature  string            `json:"signature"`  //签名
-	Timestamp  int64             `json:"timestamp"`
+	OpHash     string            `bson:"op_hash"`
+	Collection string            `bson:"collection"` //操作的数据表
+	Feature    CollectionFeature `bson:"feature"`
+	PublicKey  string            `bson:"public_key"` //公钥
+	Signature  string            `bson:"signature"`  //签名
+	Timestamp  int64             `bson:"timestamp"`
 }
 
 // history data
 type MasterHistoryDoc struct {
-	OpHash     string            `json:"op_hash"`
-	Version    int               `json:"version"`
-	TxHash     string            `json:"tx_hash"`
-	Collection string            `json:"collection"` //操作的数据表
-	Feature    CollectionFeature `json:"feature"`
-	PublicKey  string            `json:"public_key"` //公钥
-	Signature  string            `json:"signature"`  //签名
-	Timestamp  int64             `json:"timestamp"`
+	OpHash     string            `bson:"op_hash"`
+	Version    int64               `bson:"version"`
+	TxHash     string            `bson:"tx_hash"`
+	Collection string            `bson:"collection"` //操作的数据表
+	Feature    CollectionFeature `bson:"feature"`
+	PublicKey  string            `bson:"public_key"` //公钥
+	Signature  string            `bson:"signature"`  //签名
+	Timestamp  int64             `bson:"timestamp"`
 }
 
 // operation
 type MasterOpRecordDoc struct {
-	OpHash     string            `json:"op_hash"`
-	TxHash     string            `json:"tx_hash"`
-	Collection string            `json:"collection"` //操作的数据表
-	Feature    CollectionFeature `json:"feature"`
-	PublicKey  string            `json:"public_key"` //公钥
-	Signature  string            `json:"signature"`  //签名
-	Timestamp  int64             `json:"timestamp"`
+	OpHash     string            `bson:"op_hash"`
+	TxHash     string            `bson:"tx_hash"`
+	Collection string            `bson:"collection"` //操作的数据表
+	Feature    CollectionFeature `bson:"feature"`
+	PublicKey  string            `bson:"public_key"` //公钥
+	Signature  string            `bson:"signature"`  //签名
+	Timestamp  int64             `bson:"timestamp"`
 }
 
 // info table
 type MasterDocInfoDoc struct {
-	Collection string `json:"collection"` //操作的数据表
-	Version    int    `json:"version"`
-	CreatedAt  int64  `json:"created_at"` // timestamp ms
-	CreatedBy  string `json:"created_by"`
-	ModifiedAt int64  `json:"modified_at"` // timestamp ms
-	ModifiedBy string `json:"modified_by"`
+	Collection string `bson:"collection"` //操作的数据表
+	Version    int64    `bson:"version"`
+	CreatedAt  int64  `bson:"created_at"` // timestamp ms
+	CreatedBy  string `bson:"created_by"`
+	ModifiedAt int64  `bson:"modified_at"` // timestamp ms
+	ModifiedBy string `bson:"modified_by"`
 }
 
 // Audit table. merged to oprecord
 type AuditModel struct {
-	OpHash string `json:"_id"` //数据的hash
+	OpHash string `bson:"_id"` //数据的hash
 	//Collection string                 `json:"collection"` //操作的数据表
-	Operation string                 `json:"operation"`
-	Timestamp string                 `json:"timestamp"`
-	Data      map[string]interface{} `json:"data"`       //操作记录
-	PublicKey string                 `json:"public_key"` //公钥
-	Signature string                 `json:"signature"`  //签名
+	Operation string                 `bson:"operation"`
+	Timestamp string                 `bson:"timestamp"`
+	Data      map[string]interface{} `bson:"data"`       //操作记录
+	PublicKey string                 `bson:"public_key"` //公钥
+	Signature string                 `bson:"signature"`  //签名
 }
 
 // OpDoc is the task queue filled by chain sync.
 // update OpDoc once the OpDoc is executed.
 type OpDoc struct {
-	Order      int32  `json:"oder"`
-	IsExecuted bool   `json:"is_executed"`
-	TxHash     string `json:"tx_hash"`
-	OpHash     string `json:"op_hash"`
-	OpStr      string `json:"op_str"`
-	Signature  string `json:"signature"`
-	PublicKey  string `json:"public_key"`
+	Order      int32  `bson:"order"`
+	Height	   int32  `bson:"height"`
+	IsExecuted bool   `bson:"is_executed"`
+	TxHash     string `bson:"tx_hash"`
+	OpHash     string `bson:"op_hash"`
+	OpStr      string `bson:"op_str"`
+	Signature  string `bson:"signature"`
+	PublicKey  string `bson:"public_key"`
 }
+
+// data table
+type DataDoc struct {
+	DocId   string `bson:"doc_id"` // 文档Id
+	Timestamp int64                 `bson:"timestamp"`
+	Data      map[string]interface{} `bson:"data"`
+	PublicKey string                 `bson:"public_key"` //公钥
+	Signature string                 `bson:"signature"`  //签名
+}
+
 
 // oprecord table. One for each collection
 type OpRecordDoc struct {
-	DocId   string `json:"doc_id"`  // 文档Id
-	OpHash  string `json:"op_hash"` //数据的hash
-	Version int    `json:"version"`
+	DocId   string `bson:"doc_id"`  // 文档Id
+	OpHash  string `bson:"op_hash"` //数据的hash
+	Version int64    `bson:"version"`
 	//Collection string                 `json:"collection"` //操作的数据表
-	Operation string                 `json:"operation"`
-	Timestamp string                 `json:"timestamp"`
-	Data      map[string]interface{} `json:"data"`       //操作记录
-	PublicKey string                 `json:"public_key"` //公钥
-	Signature string                 `json:"signature"`  //签名
+	Operation string                 `bson:"operation"`
+	Timestamp int64                 `bson:"timestamp"`
+	Data      map[string]interface{} `bson:"data"`       //操作记录
+	PublicKey string                 `bson:"public_key"` //公钥
+	Signature string                 `bson:"signature"`  //签名
 }
 
 // history table。
 type HistoryDoc struct {
-	DocId   string `json:"doc_id"` // 文档Id
-	Version int    `json:"version"`
+	DocId   string `bson:"doc_id"` // 文档Id
+	Version int64    `bson:"version"`
 	//Collection string                 `json:"collection"` //操作的数据表
-	Timestamp string                 `json:"timestamp"`
-	Data      map[string]interface{} `json:"history"`    //历史版本
-	PublicKey string                 `json:"public_key"` //公钥
-	Signature string                 `json:"signature"`  //签名
+	Timestamp int64                 `bson:"timestamp"`
+	Data      map[string]interface{} `bson:"history"`    //历史版本
+	PublicKey string                 `bson:"public_key"` //公钥
+	Signature string                 `bson:"signature"`  //签名
 }
 
 // info table
 type DocInfoDoc struct {
-	DocId   string `json:"doc_id"` // 文档Id
-	Version int    `json:"version"`
+	DocId   string `bson:"doc_id"` // 文档Id
+	Version int64    `bson:"version"`
 	//Collection   string `json:"collection"` //操作的数据表
-	CreatedAt  int64  `json:"created_at"` // timestamp ms
-	CreatedBy  string `json:"created_by"`
-	ModifiedAt int64  `json:"modified_at"` // timestamp ms
-	ModifiedBy string `json:"modified_by"`
+	CreatedAt  int64  `bson:"created_at"` // timestamp ms
+	CreatedBy  string `bson:"created_by"`
+	ModifiedAt int64  `bson:"modified_at"` // timestamp ms
+	ModifiedBy string `bson:"modified_by"`
 }
 
 //Permissions table

@@ -1,84 +1,68 @@
 package instruction
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"errors"
+	"github.com/sirupsen/logrus"
+	"log"
+	"context"
+)
 
-func (t *InstructionExecutor) createIndex(instruction OpContext) error {
-	com := &IndexCommand{}
-	err := json.Unmarshal([]byte(instruction), com)
+func (t *InstructionExecutor) createIndex(gcmd GeneralCommand) (err error) {
+	ctx, _ := context.WithTimeout(context.Background(), t.Config.WriteTimeout)
+	cmd := &IndexCommand{}
+	err = json.Unmarshal([]byte(gcmd.OpStr), cmd)
 	if err != nil {
-		log.Println("failed to unmarshal create_index command.")
-		return err
+		log.Fatal("failed to unmarshal create_index gcmd.")
+		return
 	}
-	//TODO: Verification of signature
-	com.Timestamp = timestamp
-	data := make(map[string]interface{})
-	data["index"] = com.Index
-	version, err := InsertInfo(com.OpHash, com.Collection, com.PublicKey, com.Timestamp)
-	if err != nil {
-		log.Println("failed to insert info.")
-		return err
+
+	// permission verification
+	if !t.PermissionVerify(CreateIndex, cmd.Collection, cmd.PublicKey) {
+		err = errors.New("user does not have permission to perform createIndex")
+		logrus.WithError(err).Warn("error on createIndex")
+		return
 	}
-	//Indexes=append(Indexes,com)
-	blockdb := mongoutils.InitMgo(url, BlockDataBase, com.Collection)
-	for k, v := range com.Index {
-		_, err = blockdb.CreateIndex(k, "data."+v)
+
+	// TODO: create index
+	for k,v:=range cmd.Index{
+		_, err = t.storageExecutor.CreateIndex(ctx,t.formatCollectionName(cmd.Collection, DataType),k,"data."+v)
 		if err != nil {
-			log.Println("failed to create index for: data." + v)
-			return err
+			logrus.WithError(err).Error("failed to create index on document: "+cmd.Collection)
+			// TODO: consider revert the changes or retry or something.
 		}
 	}
-	_ = blockdb.Close()
 
-	err = OpRecord(CreateIndex, version, com.OpHash, com.Collection, timestamp, data, com.PublicKey, com.Signature)
-	if err != nil {
-		return err
-	}
-	//HistoryRecord(com.OpHash,info.Version,com.Collection,timestamp,data,com.PublicKey,com.Signature)
-	err = Audit(CreateIndex, com.OpHash, com.Collection, timestamp, data, com.PublicKey, com.Signature)
-	if err != nil {
-		return err
-	}
-	return nil
+
+	return
 }
 
-func (t *InstructionExecutor) dropIndex(instruction OpContext) error {
-	strconv.FormatInt(time.Now().Unix(), 10)
-
-	com := &IndexCommand{}
-	err := json.Unmarshal([]byte(instruction), com)
+func (t *InstructionExecutor) dropIndex(gcmd GeneralCommand) (err error) {
+	ctx, _ := context.WithTimeout(context.Background(), t.Config.WriteTimeout)
+	cmd := &IndexCommand{}
+	err = json.Unmarshal([]byte(gcmd.OpStr), cmd)
 	if err != nil {
-		log.Println("failed to unmarshal drop_index command.")
-		return err
-	}
-	//ok,index:=UpdateCollectionIndex(com.Collection,com.Index)
-	com.Timestamp = ts()
-	data := make(map[string]interface{})
-	data["index"] = com.Index
-	version, err := InsertInfo(com.OpHash, com.Collection, com.PublicKey, com.Timestamp)
-	if err != nil {
-		log.Println("failed to insert info.")
-		return err
+		log.Fatal("failed to unmarshal drop_index gcmd.")
+		return
 	}
 
-	blockdb := mongoutils.InitMgo(url, BlockDataBase, com.Collection)
-	for k := range com.Index {
-		err = blockdb.DropIndex(k)
+	// permission verification
+	if !t.PermissionVerify(CreateIndex, cmd.Collection, cmd.PublicKey) {
+		err = errors.New("user does not have permission to perform dropIndex")
+		logrus.WithError(err).Warn("error on dropIndex")
+		return
+	}
+
+
+	//TODO: drop index
+	for k:=range cmd.Index{
+		err = t.storageExecutor.DropIndex(ctx,t.formatCollectionName(cmd.Collection, DataType),k)
 		if err != nil {
-			log.Println("failed to drop index: " + k)
-			return err
+			logrus.WithError(err).Error("failed to drop index on document: "+cmd.Collection)
+			// TODO: consider revert the changes or retry or something.
 		}
 	}
-	_ = blockdb.Close()
 
-	err = OpRecord(DropIndex, version, com.OpHash, com.Collection, timestamp, data, com.PublicKey, com.Signature)
-	if err != nil {
-		return err
-	}
-	err = Audit(DropIndex, com.OpHash, com.Collection, timestamp, data, com.PublicKey, com.Signature)
-	if err != nil {
-		return err
-	}
-	//data["index"]=index.Index
-	//HistoryRecord("",com.Collection,timestamp,data,com.PublicKey,com.Signature)
-	return nil
+
+	return
 }
