@@ -35,10 +35,10 @@ func Connect(ctx context.Context, url string, databaseName string, authMechanism
 		return nil, err
 	}
 
-	err = client.Ping(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
+	//err = client.Ping(ctx, nil)
+	//if err != nil {
+	//	return nil, err
+	//}
 
 	mClient := &MongoClient{}
 	mClient.client = client

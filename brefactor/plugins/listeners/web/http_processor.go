@@ -85,7 +85,7 @@ func (l *HttpListener) Handle(rw http.ResponseWriter, req *http.Request) {
 		http.Error(rw, "miss content", http.StatusBadRequest)
 		return
 	}
-
+	fmt.Println(msg)
 	var message Message
 	err = json.Unmarshal(msg, &message)
 	if err != nil {

@@ -10,13 +10,20 @@
 
 [storage]
     [storage.mongodb]
-    url = "mongodb://nbstock.top:30003"
+    timeout_connect_ms = 15000
+
+#    url = "mongodb://nbstock.top:30003"
+#    database = "blockdb"
+#    auth_method = "SCRAM-SHA-256"
+#    username = "rw"
+#    password = "comecome"
+
+
+    url = "mongodb://localhost:27017"
     database = "blockdb"
     auth_method = ""
     username = "rw"
     password = "comecome"
-
-    timeout_connect_ms = 5000
 
 
 [blockchain]

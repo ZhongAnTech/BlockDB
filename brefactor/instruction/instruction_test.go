@@ -31,11 +31,16 @@ func TestInstruction(t *testing.T) {
 	var executor InstructionExecutor
 	executor.InitDefault()
 	executor.Config = InstructionExecutorConfig{10, time.Second * 3, time.Second * 3, time.Second * 3}
-	executor.storageExecutor = storage.Connect(ctx, "mongodb://paichepai.win:27017", "blockdb", "", "", "")
-	//executor.storageExecutor=storage.Connect(ctx, "mongodb://127.0.0.1:27017", "block", "", "", "")
-	err := executor.InitCollection(ctx, MasterCollection)
+	client, err := storage.Connect(ctx, "mongodb://localhost:27017", "blockdb", "", "", "")
 	if err != nil {
-		fmt.Println(err)
+		panic(err)
+	}
+	executor.storageExecutor = client
+
+	//executor.storageExecutor=storage.Connect(ctx, "mongodb://127.0.0.1:27017", "block", "", "", "")
+	err = executor.InitCollection(ctx, MasterCollection)
+	if err != nil {
+		panic(err)
 	}
 	executor.doBatchJob()
 
