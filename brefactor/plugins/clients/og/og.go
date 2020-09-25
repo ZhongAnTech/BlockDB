@@ -207,6 +207,7 @@ outside:
 	logrus.Info("OgProcessor stopped")
 }
 
+// TODO: Wu jianhang call this method
 func (o *OgClient) EnqueueSendToLedger(command *core_interface.BlockDBMessage) error {
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
 	o.StorageExecutor.CreateCollection(ctx, "_op")
