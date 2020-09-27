@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/ZhongAnTech/BlockDB/brefactor/core"
 	"github.com/ZhongAnTech/BlockDB/brefactor/core_interface"
+	"github.com/ZhongAnTech/BlockDB/brefactor/plugins/clients/og"
 	"github.com/gorilla/mux"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/sirupsen/logrus"
@@ -29,6 +30,7 @@ type HttpListener struct {
 	BlockDBCommandProcessor core_interface.BlockDBCommandProcessor
 	Config                  HttpListenerConfig
 	BusinessReader          *core.BusinessReader
+	OgClient                  *og.OgClient
 
 	wg      sync.WaitGroup
 	stopped bool
@@ -65,11 +67,13 @@ func (l *HttpListener) Setup() {
 }
 
 func (l *HttpListener) Start() {
+	l.OgClient.Start()
 	go l.doListen()
 	logrus.Info("HttpListener started")
 }
 
 func (l *HttpListener) Stop() {
+	l.OgClient.Stop()
 	l.stopped = true
 	logrus.Info("HttpListener stopped")
 }
@@ -85,7 +89,7 @@ func (l *HttpListener) Handle(rw http.ResponseWriter, req *http.Request) {
 		http.Error(rw, "miss content", http.StatusBadRequest)
 		return
 	}
-	fmt.Println(msg)
+
 	var message Message
 	err = json.Unmarshal(msg, &message)
 	if err != nil {
@@ -130,7 +134,20 @@ func (l *HttpListener) Handle(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	//logrus.Tracef("get audit request data: %s", string(data))
+	logrus.Tracef("get audit request data: %s", string(data))
+
+	blockDBMessage := &core_interface.BlockDBMessage{
+		PublicKey: message.PublicKey,
+		Signature: message.Signature,
+		OpHash:    message.OpHash,
+		Data:      string(data),
+	}
+
+	err = l.OgClient.EnqueueSendToLedger(blockDBMessage)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	//command, err := l.JsonCommandParser.FromJson(string(data))
 	//
 	//if err != nil {

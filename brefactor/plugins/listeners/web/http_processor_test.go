@@ -2,10 +2,13 @@ package web
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/ZhongAnTech/BlockDB/brefactor/plugins/clients/og"
+	"github.com/ZhongAnTech/BlockDB/brefactor/storage"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"net/http"
 	"net/http/httptest"
@@ -13,9 +16,28 @@ import (
 )
 
 func TestHttpListener_Handle(t *testing.T) {
+	config := &og.OgClientConfig{
+		MongoUrl:   "127.0.0.1:27017",
+		LedgerUrl:  "http://47.100.122.212:30022/",
+		RetryTimes: 5,
+	}
+
+	storageExecutor, err := storage.Connect(context.Background(),"127.0.0.1:27017", "test", "", "", "" )
+
+	ogClient := &og.OgClient{
+		Config:          config,
+		StorageExecutor: storageExecutor,
+	}
+	ogClient.InitDefault()
+
 	httpListener := HttpListener{
 		Config: HttpListenerConfig{MaxContentLength: 1e7},
+		OgClient: ogClient,
 	}
+
+	ogClient.Start()
+	defer ogClient.Stop()
+
 	data := `{
 		"op": "insert",
 		"collection": "sample_collection",
