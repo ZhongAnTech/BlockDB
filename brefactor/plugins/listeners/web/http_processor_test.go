@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"github.com/ZhongAnTech/BlockDB/brefactor/plugins/clients/og"
 	"github.com/ZhongAnTech/BlockDB/brefactor/storage"
 	"github.com/libp2p/go-libp2p-core/crypto"
@@ -17,12 +16,15 @@ import (
 
 func TestHttpListener_Handle(t *testing.T) {
 	config := &og.OgClientConfig{
-		MongoUrl:   "127.0.0.1:27017",
+		MongoUrl:   "mongodb://47.100.20.137:27017",
 		LedgerUrl:  "http://47.100.122.212:30022/",
 		RetryTimes: 5,
 	}
 
-	storageExecutor, err := storage.Connect(context.Background(),"127.0.0.1:27017", "test", "", "", "" )
+	storageExecutor, err := storage.Connect(context.Background(),"mongodb://47.100.20.137:27017", "test", "", "", "" )
+	if err != nil {
+		t.Error(err.Error())
+	}
 
 	ogClient := &og.OgClient{
 		Config:          config,
@@ -60,7 +62,7 @@ func TestHttpListener_Handle(t *testing.T) {
 	priBytes, _ := hex.DecodeString("42f909a1a4cc546f270306b1b69c45434a1e37cddf2d834ea377cd5e92c5d3d5")
 	pri, err := crypto.UnmarshalSecp256k1PrivateKey(priBytes)
 	if err != nil {
-		fmt.Println(err.Error())
+		t.Error(err.Error())
 	}
 	dataBytes := []byte(Normalize(data))
 	hash := sha256.Sum256(dataBytes)
