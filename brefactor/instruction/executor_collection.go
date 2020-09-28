@@ -286,6 +286,7 @@ func(t *InstructionExecutor)GetCurrentVersion(ctx context.Context,filter bson.M,
 	}
 	if len(docInfoDocCurrentMList.Content) == 0 {
 		err = errors.New("data doc info not found: " + coll)
+		return -1,err
 	}
 
 	docInfoDocCurrentM := docInfoDocCurrentMList.Content[0]
