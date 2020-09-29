@@ -131,7 +131,7 @@ outside:
 		select {
 		case msg := <-o.dataChan:
 			//need to save msg in mongodb
-			fmt.Println(msg)
+			fmt.Println("receive msg from EnqueueSendToLedger: ",msg)
 			id, err := o.StorageExecutor.Insert(ctx, "dataToOG", bson.M{
 				//{"tx_hash",msg.TxHash},
 				"public_key": msg.PublicKey,

@@ -139,9 +139,11 @@ func (l *HttpListener) Handle(rw http.ResponseWriter, req *http.Request) {
 	blockDBMessage := &core_interface.BlockDBMessage{
 		PublicKey: message.PublicKey,
 		Signature: message.Signature,
-		OpHash:    message.OpHash,
+		OpHash:    "0x3475623705236",
 		Data:      string(data),
 	}
+
+	fmt.Println("blockdbmsg..:",blockDBMessage)
 
 	err = l.OgClient.EnqueueSendToLedger(blockDBMessage)
 	if err != nil {

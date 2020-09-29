@@ -98,6 +98,17 @@ func (n *BlockDB) Setup() {
 
 	// TODO: Sync manager to sync from lastHeight to maxHeight. (Wu Jianhang)
 	// LedgerSyncer
+	//websocket
+	ws := &syncer.WebsocketInfoReceiver{}
+	if viper.GetBool("blockchain.og.enable") {
+		ws = &syncer.WebsocketInfoReceiver{
+			WebsocketUrl: viper.GetString("blockchain.og.wsclient.url"),
+			HeightChan: make(chan int64,10),
+		}
+		ws.Start()
+		n.components = append(n.components, ws)
+	}
+
 
 	// TODO: Websocket server to receive new sequencer messages. (Ding Qingyun)
 	// HeightSyncer
@@ -107,18 +118,15 @@ func (n *BlockDB) Setup() {
 				LatestHeightUrl: viper.GetString("blockchain.og.url"),
 				WebsocketUrl:    viper.GetString("blockchain.og.wsclient.url"),
 			},
+			StorageExecutor: storageExecutor,
+			InfoReceiver:   ws ,
+			Quit:           nil,
+			MaxSyncedHeight: 122759,
 		}
 		s.Start()
 		n.components = append(n.components, s)
 	}
 
-	//websocket
-	if viper.GetBool("blockchain.og.enable") {
-		ws := &syncer.WebsocketInfoReceiver{
-			WebsocketUrl: viper.GetString("blockchain.og.wsclient.url"),
-		}
-		ws.Start()
-		n.components = append(n.components, ws)
-	}
+
 
 }

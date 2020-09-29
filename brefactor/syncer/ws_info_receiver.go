@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+
+
 type WebsocketInfoReceiver struct {
 	WebsocketUrl string
 	HeightChan   chan int64
@@ -15,6 +17,7 @@ type WebsocketInfoReceiver struct {
 }
 
 func (w WebsocketInfoReceiver) Start() {
+	fmt.Println("ws start...")
 	w.Connect()
 }
 
@@ -32,19 +35,20 @@ func (w WebsocketInfoReceiver) Connect() {
 	if nil != err {
 		log.Print(err)
 	}
-	for {
+	for{
 		_, messageData, err := connect.ReadMessage()
 		if nil != err {
 			log.Print(err)
-			break
 		}
 		str := string(messageData)
+		fmt.Println(str)
 		s1 := strings.Split(str, ",")
 		s2 := strings.Split(s1[5], ":")
 		height, err := strconv.Atoi(s2[1])
 		fmt.Println(height)
-		w.HeightChan <- int64(height)
+		w.EventChannel() <- int64(height)
 	}
+
 }
 
 func (w WebsocketInfoReceiver) EventChannel() chan int64 {

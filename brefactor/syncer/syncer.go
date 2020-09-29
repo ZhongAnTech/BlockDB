@@ -15,19 +15,18 @@ import (
 )
 
 // ChainOperator is the pulling way to query the latest sequencer and txs.
-type ChainOperator interface {
-	QueryHeight() (int64, error)
-	QueryTxHashByHeight(url string) ([]string, error)
-	QueryTxByHash(url string) ([]byte, error)
-	// TODO: Qingyun enrich interface and implement plugins/clients/og/OgChainOperator
-}
+//type ChainOperator interface {
+//	QueryHeight() (int64, error)
+//	QueryTxHashByHeight(url string) ([]string, error)
+//	QueryTxByHash(url string) ([]byte, error)
+//	// TODO: Qingyun enrich interface and implement plugins/clients/og/OgChainOperator
+//}
 
 // ChainEventReceiver is the pushing way to receive the latest sequencer
 type ChainEventReceiver interface {
 	Connect()
 	EventChannel() chan int64 // Maybe you will pass a more complicate object in the channel
 	// TODO: Qingyun enrich interface and implement plugins/clients/og/OgChainEventReceiver
-
 }
 
 type OgChainSyncerConfig struct {
@@ -42,10 +41,10 @@ type OgChainSyncer struct {
 	SyncerConfig OgChainSyncerConfig
 	// table: op
 	MaxSyncedHeight int64
-	ChainOperator   ChainOperator
+	//ChainOperator   ChainOperator
 	InfoReceiver    ChainEventReceiver
-	storageExecutor core_interface.StorageExecutor
-	quit            chan bool
+	StorageExecutor core_interface.StorageExecutor
+	Quit            chan bool
 }
 
 type Archive struct {
@@ -73,14 +72,16 @@ type Op struct {
 	OpStr      string `json:"op_str"`
 }
 
+
+
 func (o *OgChainSyncer) Start() {
 	// load max height from ledger
-
+	fmt.Println("loop start...")
 	go o.loop()
 }
 
 func (o *OgChainSyncer) Stop() {
-	o.quit <- true
+	o.Quit <- true
 }
 
 func (o *OgChainSyncer) Name() string {
@@ -149,6 +150,7 @@ func (o *OgChainSyncer) HeightCompensate(newHeight int64) {
 		// TODO: sync.
 		for i := o.MaxSyncedHeight + 1; i <= newHeight; i++ {
 			url1 := o.SyncerConfig.LatestHeightUrl + "/transaction_hashes?height=" + strconv.Itoa(int(i))
+			fmt.Println(url1)
 			hashes, err := o.QueryTxHashByHeight(url1)
 			if err != nil {
 				fmt.Println("can't get txhash in newHeight-block")
@@ -164,7 +166,7 @@ func (o *OgChainSyncer) HeightCompensate(newHeight int64) {
 					if err != nil {
 						fmt.Println("query tx by hash fail..")
 					}
-					if strings.Contains(txData, ":4") == true {
+					if strings.Contains(txData, ":1") == true {
 						//验签，反序列化放到结构体，存入数据库
 						txDatas = og.ToStruct(txData)
 						fmt.Println("type=4---------", txData)
@@ -187,7 +189,7 @@ func (o *OgChainSyncer) HeightCompensate(newHeight int64) {
 
 					ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
 					//update := bson.D{{"$set", data}}
-					id, err := o.storageExecutor.Insert(ctx, "op", bson.M{
+					id, err := o.StorageExecutor.Insert(ctx, "op", bson.M{
 						"is_executed": op.IsExecuted,
 						"tx_hash":     op.TxHash,
 						"op_hash":     op.OpHash,
@@ -208,12 +210,12 @@ func (o *OgChainSyncer) HeightCompensate(newHeight int64) {
 						"op_hash": op.OpHash,
 						"status":  1,
 					}
-					o.storageExecutor.Update(ctx, "isOnChain", filter, update, "set")
+					o.StorageExecutor.Update(ctx, "isOnChain", filter, update, "set")
 				}
 			}
 			ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
 			//将此时的高度替换旧的存入数据库中
-			o.storageExecutor.Update(ctx, "lastHeight", bson.M{"lastHeigh": o.MaxSyncedHeight}, bson.M{"lastHeight": newHeight}, "set")
+			o.StorageExecutor.Update(ctx, "lastHeight", bson.M{"lastHeigh": o.MaxSyncedHeight}, bson.M{"lastHeight": newHeight}, "set")
 			o.MaxSyncedHeight = newHeight
 		}
 	}
@@ -226,15 +228,16 @@ func (o *OgChainSyncer) loop() {
 		t.Reset(60 * time.Second)
 
 		select {
-		case <-o.quit:
+		case <-o.Quit:
 			return
 		case newHeight := <-o.InfoReceiver.EventChannel():
 			// TODO: compare local max height and sync if behind.
 			//newHeight来自ws推送
 			//假如重新启动，就从数据库里面查之前的高度
+			fmt.Println("new height from eventchannel: ",newHeight)
 			if o.MaxSyncedHeight == 0 {
 				ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
-				content, err := o.storageExecutor.Select(ctx, "lastHeight", bson.M{}, nil, 1, 0)
+				content, err := o.StorageExecutor.Select(ctx, "lastHeight", bson.M{}, nil, 1, 0)
 				if err != nil {
 					fmt.Println("can't get lateHeight from db")
 				}

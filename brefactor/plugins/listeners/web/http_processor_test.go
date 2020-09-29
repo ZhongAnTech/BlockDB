@@ -16,12 +16,12 @@ import (
 
 func TestHttpListener_Handle(t *testing.T) {
 	config := &og.OgClientConfig{
-		MongoUrl:   "mongodb://47.100.20.137:27017",
-		LedgerUrl:  "http://47.100.122.212:30022/",
+		MongoUrl:   "mongodb://localhost:27017",
+		LedgerUrl:  "http://nbstock.top:30010/new_archive",
 		RetryTimes: 5,
 	}
 
-	storageExecutor, err := storage.Connect(context.Background(),"mongodb://47.100.20.137:27017", "test", "", "", "" )
+	storageExecutor, err := storage.Connect(context.Background(),"mongodb://localhost:27017", "test", "", "", "" )
 	if err != nil {
 		t.Error(err.Error())
 	}
