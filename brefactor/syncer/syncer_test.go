@@ -24,7 +24,7 @@ func TestSyncer(t *testing.T)  {
 
 	go ws.Start()
 	ogChainSyncer := OgChainSyncer{
-		MaxSyncedHeight: 122759,
+		MaxSyncedHeight: 468899,
 		SyncerConfig:    ogChaninSyncerConfig,
 		StorageExecutor: storageExecutor,
 		InfoReceiver:    ws,

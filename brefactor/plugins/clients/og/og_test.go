@@ -2,7 +2,6 @@ package og
 
 import (
 	"context"
-	"fmt"
 	"github.com/ZhongAnTech/BlockDB/brefactor/core_interface"
 	"github.com/ZhongAnTech/BlockDB/brefactor/storage"
 	"github.com/sirupsen/logrus"
@@ -20,12 +19,13 @@ func TestNewOgProcessor(t *testing.T) {
 
 	logrus.SetLevel(logrus.TraceLevel)
 	config := &OgClientConfig{
-		MongoUrl:   "mongodb://nbstock.top:30003",
+		MongoUrl:   "mongodb://localhost:27017",
 		LedgerUrl:  "http://nbstock.top:30010/new_archive",
 		RetryTimes: 3,
+
 	}
 
-	storageExecutor, err := storage.Connect(context.Background(),"mongodb://nbstock.top:30003", "blockdb", "SCRAM-SHA-256", "rw", "comecome" )
+	storageExecutor, err := storage.Connect(context.Background(),"mongodb://localhost:27017", "blockdb", "","nil","" )
 	if err != nil {
 		t.Error(err.Error())
 	}
@@ -33,12 +33,16 @@ func TestNewOgProcessor(t *testing.T) {
 	p := OgClient{
 		Config: config,
 		StorageExecutor: storageExecutor,
+		dataChan: make(chan *core_interface.BlockDBMessage,10),
+		httpClient: createHTTPClient(),
 	}
-	p.Start()
-	defer p.Stop()
-	fmt.Println(blockMess)
-
 	p.EnqueueSendToLedger(&blockMess)
+	p.Start()
+	p.ConsumeQueue()
+
+
+
+
 
 	//data := gettestData()
 	//p.EnqueueSendToLedger(&data)

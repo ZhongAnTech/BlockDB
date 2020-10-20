@@ -16,7 +16,7 @@ type OgChainOperator struct {
 }
 
 func (oc *OgChainOperator) QueryHeight() (int64, error) {
-	response, err := http.Get("http://nbstock.top:30022//v1/sequencer")
+	response, err := http.Get("http://nbstock.top:30010//v1/sequencer")
 	if err != nil {
 		fmt.Println(err)
 	}

@@ -49,7 +49,7 @@ func (m *OgClient) Name() string {
 }
 
 func (m *OgClient) InitDefault() {
-	m.dataChan = make(chan *core_interface.BlockDBMessage)
+	m.dataChan = make(chan *core_interface.BlockDBMessage, 30)
 	m.quit = make(chan bool)
 	m.httpClient = createHTTPClient()
 }
@@ -77,7 +77,6 @@ func (m *OgClient) Stop() {
 func (m *OgClient) Start() {
 	logrus.Info("OgProcessor started")
 	// start consuming queue
-
 	go m.ConsumeQueue()
 	go m.Reload()
 
@@ -131,6 +130,7 @@ outside:
 		select {
 		case msg := <-o.dataChan:
 			//need to save msg in mongodb
+			fmt.Println("start to consume queue")
 			fmt.Println("receive msg from EnqueueSendToLedger: ",msg)
 			id, err := o.StorageExecutor.Insert(ctx, "dataToOG", bson.M{
 				//{"tx_hash",msg.TxHash},
@@ -148,7 +148,7 @@ outside:
 				resData, err = o.sendToLedger(msg)
 				//需要重新上链而非break
 				if resData.Data == nil {
-					fmt.Println(resData.Message)
+					fmt.Println("return msg: ", resData.Message)
 
 				} else {
 					//txhash-ophash 存入isOnchain集合中
@@ -214,6 +214,7 @@ func (o *OgClient) EnqueueSendToLedger(command *core_interface.BlockDBMessage) e
 	fmt.Println("COMMAND:", command)
 	command.Data = base64.StdEncoding.EncodeToString([]byte(command.Data))
 	o.dataChan <- command
+	fmt.Println(command)
 	fmt.Println(len(o.dataChan))
 	return nil
 }
@@ -236,10 +237,9 @@ func (o *OgClient) sendToLedger(message *core_interface.BlockDBMessage) (resData
 		Data: dataBytes,
 	}
 	dataBytes, err = json.Marshal(txReq)
-
+	fmt.Println("dataBytes:",dataBytes)
 	req, err := http.NewRequest("POST", o.Config.LedgerUrl, bytes.NewBuffer(dataBytes))
 	logrus.WithField("data ", string(dataBytes)).Trace("send data to og")
-
 	//返回*response，关于连接的信息
 	response, err := o.httpClient.Do(req)
 
@@ -252,7 +252,6 @@ func (o *OgClient) sendToLedger(message *core_interface.BlockDBMessage) (resData
 	// Let's check if the work actually is done
 	// We have seen inconsistencies even when we get 200 OK response
 	body, err := ioutil.ReadAll(response.Body)
-	fmt.Println(string(body))
 	if err != nil {
 		logrus.WithError(err).Fatalf("Couldn't parse response body.")
 		return
